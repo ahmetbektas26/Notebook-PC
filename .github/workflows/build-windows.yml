@@ -1,0 +1,42 @@
+name: Windows kurulum dosyası
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Notebook-PC Windows
+    runs-on: windows-latest
+    steps:
+      - name: Kaynak kodu al
+        uses: actions/checkout@v4
+
+      - name: Node.js kur
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Bağımlılıkları kur
+        run: npm ci
+
+      - name: Testleri çalıştır
+        run: npm test
+
+      - name: Windows kurulum dosyasını üret
+        run: npm run dist:win
+
+      - name: Kurulum dosyasını yükle
+        uses: actions/upload-artifact@v4
+        with:
+          name: Notebook-PC-Windows
+          path: release/Notebook-PC-Setup-*.exe
+          if-no-files-found: error
