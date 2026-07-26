@@ -4,20 +4,24 @@ import Icon from "./Icon";
 interface SidebarProps {
   page: Page;
   onPageChange: (page: Page) => void;
+  locked: boolean;
 }
 
 const navItems: Array<{ page: Page; label: string; icon: Parameters<typeof Icon>[0]["name"] }> = [
   { page: "today", label: "Bugün", icon: "home" },
   { page: "calendar", label: "Takvim", icon: "calendar" },
+  { page: "review", label: "Haftalık bakış", icon: "weekly" },
   { page: "goals", label: "Kişisel hedefler", icon: "target" },
   { page: "notes", label: "Not defteri", icon: "book" },
+  { page: "templates", label: "Şablonlar", icon: "template" },
   { page: "school", label: "Okul", icon: "school" },
   { page: "settings", label: "Ayarlar", icon: "settings" }
 ];
 
 export default function Sidebar({
   page,
-  onPageChange
+  onPageChange,
+  locked
 }: SidebarProps) {
   return (
     <aside className="sidebar">
@@ -52,10 +56,12 @@ export default function Sidebar({
       </div>
 
       <div className="sidebar-foot">
-        <div className="avatar">NP</div>
+        <div className="avatar">
+          <Icon name={locked ? "lock" : "home"} size={15} />
+        </div>
         <div>
           <strong>Yerel profil</strong>
-          <span>Veriler bu cihazda</span>
+          <span>{locked ? "Yerel kasa açık" : "Veriler bu cihazda"}</span>
         </div>
         <span className="online-dot" />
       </div>

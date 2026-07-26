@@ -23,12 +23,15 @@ export function uid() {
 
 export function createInitialData(): AppData {
   return {
-    version: 3,
+    version: 4,
     courses: [],
     notes: [],
     plannerItems: [],
     goals: [],
     grades: [],
+    templates: [],
+    focusSessions: [],
+    weeklyReflections: [],
     settings: {
       theme: "light",
       currentCredits: 0,
@@ -41,12 +44,15 @@ export function isValidAppData(data: unknown): data is AppData {
   if (!data || typeof data !== "object") return false;
   const candidate = data as Partial<AppData>;
   return (
-    candidate.version === 3 &&
+    candidate.version === 4 &&
     Array.isArray(candidate.courses) &&
     Array.isArray(candidate.notes) &&
     Array.isArray(candidate.plannerItems) &&
     Array.isArray(candidate.goals) &&
     Array.isArray(candidate.grades) &&
+    Array.isArray(candidate.templates) &&
+    Array.isArray(candidate.focusSessions) &&
+    Array.isArray(candidate.weeklyReflections) &&
     typeof candidate.settings === "object"
   );
 }
@@ -87,6 +93,24 @@ interface VersionTwoData {
   settings?: AppData["settings"];
 }
 
+interface VersionThreeData {
+  version: 3;
+  courses?: AppData["courses"];
+  notes?: Array<
+    Omit<Note, "attachments"> & {
+      attachments?: Array<
+        Omit<PdfAttachment, "annotations"> & {
+          annotations?: PdfAttachment["annotations"];
+        }
+      >;
+    }
+  >;
+  plannerItems?: AppData["plannerItems"];
+  goals?: AppData["goals"];
+  grades?: AppData["grades"];
+  settings?: AppData["settings"];
+}
+
 export function localDateKey(date: Date) {
   const year = date.getFullYear();
   const month = `${date.getMonth() + 1}`.padStart(2, "0");
@@ -97,17 +121,54 @@ export function localDateKey(date: Date) {
 export function migrateAppData(data: unknown): AppData | null {
   if (isValidAppData(data)) return data;
   if (!data || typeof data !== "object") return null;
+  const versionThree = data as VersionThreeData;
+  if (versionThree.version === 3) {
+    return {
+      version: 4,
+      courses: Array.isArray(versionThree.courses) ? versionThree.courses : [],
+      notes: Array.isArray(versionThree.notes)
+        ? versionThree.notes.map((note) => ({
+            ...note,
+            courseId: note.courseId ?? null,
+            attachments: Array.isArray(note.attachments)
+              ? note.attachments.map((attachment) => ({
+                  ...attachment,
+                  annotations: Array.isArray(attachment.annotations)
+                    ? attachment.annotations
+                    : []
+                }))
+              : []
+          }))
+        : [],
+      plannerItems: Array.isArray(versionThree.plannerItems)
+        ? versionThree.plannerItems
+        : [],
+      goals: Array.isArray(versionThree.goals) ? versionThree.goals : [],
+      grades: Array.isArray(versionThree.grades) ? versionThree.grades : [],
+      templates: [],
+      focusSessions: [],
+      weeklyReflections: [],
+      settings: versionThree.settings ?? {
+        theme: "light",
+        currentCredits: 0,
+        currentGpa: 0
+      }
+    };
+  }
   const versionTwo = data as VersionTwoData;
   if (versionTwo.version === 2) {
     return {
-      version: 3,
+      version: 4,
       courses: Array.isArray(versionTwo.courses) ? versionTwo.courses : [],
       notes: Array.isArray(versionTwo.notes)
         ? versionTwo.notes.map((note) => ({
             ...note,
             courseId: note.courseId ?? null,
             attachments: Array.isArray(note.attachments)
-              ? note.attachments
+              ? note.attachments.map((attachment) => ({
+                  ...attachment,
+                  annotations: []
+                }))
               : []
           }))
         : [],
@@ -116,6 +177,9 @@ export function migrateAppData(data: unknown): AppData | null {
         : [],
       goals: Array.isArray(versionTwo.goals) ? versionTwo.goals : [],
       grades: Array.isArray(versionTwo.grades) ? versionTwo.grades : [],
+      templates: [],
+      focusSessions: [],
+      weeklyReflections: [],
       settings: versionTwo.settings ?? {
         theme: "light",
         currentCredits: 0,
@@ -184,16 +248,24 @@ export function migrateAppData(data: unknown): AppData | null {
     legacy.settings?.currentGpa === 2.43;
 
   return {
-    version: 3,
+    version: 4,
     courses: cleanedCourses,
     notes: notesWithoutDemo.map((note) => ({
       ...note,
       courseId: note.courseId ?? null,
-      attachments: Array.isArray(note.attachments) ? note.attachments : []
+      attachments: Array.isArray(note.attachments)
+        ? note.attachments.map((attachment) => ({
+            ...attachment,
+            annotations: []
+          }))
+        : []
     })),
     plannerItems,
     goals: [],
     grades,
+    templates: [],
+    focusSessions: [],
+    weeklyReflections: [],
     settings: {
       theme: legacy.settings?.theme ?? "light",
       currentCredits: wasOldPersonalDefault

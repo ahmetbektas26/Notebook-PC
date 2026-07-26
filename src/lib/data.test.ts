@@ -4,11 +4,14 @@ import { createInitialData, migrateAppData } from "./data";
 describe("uygulama verisi", () => {
   it("yeni kullanıcıyı tamamen boş başlatır", () => {
     const data = createInitialData();
-    expect(data.version).toBe(3);
+    expect(data.version).toBe(4);
     expect(data.courses).toEqual([]);
     expect(data.notes).toEqual([]);
     expect(data.plannerItems).toEqual([]);
     expect(data.goals).toEqual([]);
+    expect(data.templates).toEqual([]);
+    expect(data.focusSessions).toEqual([]);
+    expect(data.weeklyReflections).toEqual([]);
     expect(data.settings.currentCredits).toBe(0);
     expect(data.settings.currentGpa).toBe(0);
   });
@@ -36,8 +39,44 @@ describe("uygulama verisi", () => {
       grades: [],
       settings: { theme: "light", currentCredits: 0, currentGpa: 0 }
     });
-    expect(migrated?.version).toBe(3);
+    expect(migrated?.version).toBe(4);
     expect(migrated?.notes[0].attachments).toEqual([]);
+  });
+
+  it("3. sürüm PDF eklerine işaret alanı ekler", () => {
+    const migrated = migrateAppData({
+      version: 3,
+      courses: [],
+      notes: [
+        {
+          id: "note",
+          courseId: null,
+          topic: "PDF",
+          title: "Okuma",
+          content: "",
+          tags: [],
+          favorite: false,
+          createdAt: "2026-01-01",
+          updatedAt: "2026-01-01",
+          audio: [],
+          attachments: [
+            {
+              id: "pdf",
+              fileName: "file.pdf",
+              originalName: "Makale.pdf",
+              size: 100,
+              createdAt: "2026-01-01"
+            }
+          ]
+        }
+      ],
+      plannerItems: [],
+      goals: [],
+      grades: [],
+      settings: { theme: "light", currentCredits: 0, currentGpa: 0 }
+    });
+    expect(migrated?.version).toBe(4);
+    expect(migrated?.notes[0].attachments[0].annotations).toEqual([]);
   });
 
   it("eski demo verisini gerçek kullanıcı verisi gibi taşımaz", () => {

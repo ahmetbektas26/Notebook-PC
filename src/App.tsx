@@ -1,25 +1,54 @@
-import { useEffect, useMemo, useState } from "react";
-import type { AppData, Page } from "./types";
-import { loadAppData, persistAppData } from "./lib/data";
+import { useEffect, useState } from "react";
+import type { AppData, Page, SecurityStatus } from "./types";
+import { loadAppData, migrateAppData, persistAppData } from "./lib/data";
+import type { SearchHit } from "./lib/search";
 import Sidebar from "./components/Sidebar";
 import NotesPage from "./components/NotesPage";
 import SettingsPage from "./components/SettingsPage";
 import Icon from "./components/Icon";
+import GlobalSearch from "./components/GlobalSearch";
+import LockScreen from "./components/LockScreen";
 import TodayPage from "./components/TodayPage";
 import CalendarPage from "./components/CalendarPage";
 import GoalsPage from "./components/GoalsPage";
 import SchoolPage from "./components/SchoolPage";
+import TemplatesPage from "./components/TemplatesPage";
+import WeeklyReviewPage from "./components/WeeklyReviewPage";
+
+interface SearchFocus {
+  noteId: string | null;
+  attachmentId: string | null;
+  plannerId: string | null;
+  goalId: string | null;
+  courseId: string | null;
+  gradeId: string | null;
+}
+
+const emptyFocus: SearchFocus = {
+  noteId: null,
+  attachmentId: null,
+  plannerId: null,
+  goalId: null,
+  courseId: null,
+  gradeId: null
+};
 
 export default function App() {
   const [data, setData] = useState<AppData | null>(null);
   const [page, setPage] = useState<Page>("today");
-  const [search, setSearch] = useState("");
   const [toast, setToast] = useState("");
-  const [focusItemId, setFocusItemId] = useState<string | null>(null);
+  const [focus, setFocus] = useState<SearchFocus>(emptyFocus);
+  const [securityStatus, setSecurityStatus] =
+    useState<SecurityStatus | null>(null);
+
   useEffect(() => {
-    loadAppData().then((loaded) => {
-      setData(loaded);
-    });
+    (async () => {
+      const status = window.notebookAPI
+        ? await window.notebookAPI.getSecurityStatus()
+        : { enabled: false, locked: false, autoLockMinutes: 0 };
+      setSecurityStatus(status);
+      if (!status.locked) setData(await loadAppData());
+    })();
   }, []);
 
   useEffect(() => {
@@ -40,26 +69,53 @@ export default function App() {
   }, [data]);
 
   useEffect(() => {
-    const focusSearch = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        setPage("notes");
-        requestAnimationFrame(() => {
-          document.querySelector<HTMLInputElement>(".global-search input")?.focus();
-        });
-      }
-    };
-    window.addEventListener("keydown", focusSearch);
-    return () => window.removeEventListener("keydown", focusSearch);
-  }, []);
-
-  useEffect(() => {
     const unsubscribe = window.notebookAPI?.onReminderOpen((id) => {
       setPage("calendar");
-      setFocusItemId(id);
+      setFocus({ ...emptyFocus, plannerId: id });
     });
     return unsubscribe;
   }, []);
+
+  useEffect(() => {
+    const unsubscribe = window.notebookAPI?.onSecurityLocked(() => {
+      setData(null);
+      setSecurityStatus((current) =>
+        current ? { ...current, locked: true } : current
+      );
+    });
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    if (
+      !data ||
+      !securityStatus?.enabled ||
+      securityStatus.autoLockMinutes <= 0
+    )
+      return;
+    let timer = 0;
+    const lock = async () => {
+      await window.notebookAPI?.lockNow();
+      setData(null);
+      setSecurityStatus((current) =>
+        current ? { ...current, locked: true } : current
+      );
+    };
+    const reset = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(
+        lock,
+        securityStatus.autoLockMinutes * 60 * 1000
+      );
+    };
+    const events = ["pointerdown", "keydown", "wheel"];
+    events.forEach((event) => window.addEventListener(event, reset));
+    reset();
+    return () => {
+      window.clearTimeout(timer);
+      events.forEach((event) => window.removeEventListener(event, reset));
+    };
+  }, [data, securityStatus]);
 
   useEffect(() => {
     if (!toast) return;
@@ -67,16 +123,31 @@ export default function App() {
     return () => window.clearTimeout(timer);
   }, [toast]);
 
-  const placeholder = useMemo(() => {
-    if (page === "notes") return "Notlarda, konularda ve etiketlerde ara…";
-    if (page === "today") return "Bugünün merkezi";
-    if (page === "calendar") return "Takvim ve planlar";
-    if (page === "goals") return "Kişisel hedefler";
-    if (page === "school") return "Okul alanı";
-    return "Yerel, özel ve çevrimdışı";
-  }, [page]);
+  function handleSearchSelect(hit: SearchHit) {
+    setPage(hit.page);
+    setFocus({
+      noteId:
+        hit.kind === "note"
+          ? hit.id
+          : hit.kind === "pdf"
+            ? hit.parentId ?? null
+            : null,
+      attachmentId: hit.kind === "pdf" ? hit.id : null,
+      plannerId: hit.kind === "planner" ? hit.id : null,
+      goalId: hit.kind === "goal" ? hit.id : null,
+      courseId: hit.kind === "course" ? hit.id : null,
+      gradeId: hit.kind === "grade" ? hit.id : null
+    });
+  }
 
-  if (!data) {
+  function lockView() {
+    setData(null);
+    setSecurityStatus((current) =>
+      current ? { ...current, locked: true } : current
+    );
+  }
+
+  if (!securityStatus) {
     return (
       <div className="loading-screen">
         <div className="brand-mark large">
@@ -89,29 +160,38 @@ export default function App() {
     );
   }
 
+  if (securityStatus.locked) {
+    return (
+      <LockScreen
+        onUnlock={(unlocked, status) => {
+          setData(migrateAppData(unlocked) ?? unlocked);
+          setSecurityStatus(status);
+        }}
+      />
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="loading-screen">
+        <strong>Veriler hazırlanıyor…</strong>
+      </div>
+    );
+  }
+
   return (
     <div className="app-shell">
       <Sidebar
         page={page}
-        onPageChange={setPage}
+        onPageChange={(next) => {
+          setPage(next);
+          setFocus(emptyFocus);
+        }}
+        locked={securityStatus.enabled}
       />
       <section className="workspace">
         <header className="topbar">
-          <div className={`global-search ${page !== "notes" ? "muted" : ""}`}>
-            <Icon name="search" size={18} />
-            <input
-              value={page === "notes" ? search : ""}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder={placeholder}
-              disabled={page !== "notes"}
-            />
-            {page === "notes" && search && (
-              <button onClick={() => setSearch("")} aria-label="Aramayı temizle">
-                ×
-              </button>
-            )}
-            {page === "notes" && !search && <kbd>Ctrl K</kbd>}
-          </div>
+          <GlobalSearch data={data} onSelect={handleSearchSelect} />
           <div className="topbar-actions">
             <div className="today-chip">
               <Icon name="calendar" size={16} />
@@ -147,15 +227,19 @@ export default function App() {
             <CalendarPage
               data={data}
               onDataChange={setData}
-              focusItemId={focusItemId}
+              focusItemId={focus.plannerId}
               onToast={setToast}
             />
+          )}
+          {page === "review" && (
+            <WeeklyReviewPage data={data} onDataChange={setData} />
           )}
           {page === "goals" && (
             <GoalsPage
               data={data}
               onDataChange={setData}
               onToast={setToast}
+              focusGoalId={focus.goalId}
             />
           )}
           {page === "notes" && (
@@ -164,7 +248,16 @@ export default function App() {
               onDataChange={setData}
               scope="personal"
               activeCourseId={null}
-              search={search}
+              search=""
+              onToast={setToast}
+              focusNoteId={focus.noteId}
+              focusAttachmentId={focus.attachmentId}
+            />
+          )}
+          {page === "templates" && (
+            <TemplatesPage
+              data={data}
+              onDataChange={setData}
               onToast={setToast}
             />
           )}
@@ -173,6 +266,10 @@ export default function App() {
               data={data}
               onDataChange={setData}
               onToast={setToast}
+              focusNoteId={focus.noteId}
+              focusAttachmentId={focus.attachmentId}
+              focusCourseId={focus.courseId}
+              focusGradeId={focus.gradeId}
             />
           )}
           {page === "settings" && (
@@ -180,6 +277,9 @@ export default function App() {
               data={data}
               onDataChange={setData}
               onToast={setToast}
+              securityStatus={securityStatus}
+              onSecurityStatusChange={setSecurityStatus}
+              onLock={lockView}
             />
           )}
         </div>

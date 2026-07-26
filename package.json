@@ -1,7 +1,7 @@
 {
   "name": "notebook-pc",
-  "version": "1.2.0",
-  "description": "Ders, konu, sesli not, hatırlatıcı ve Doğuş Üniversitesi not ortalaması için çevrimdışı masaüstü uygulaması.",
+  "version": "1.3.0",
+  "description": "Notlar, PDF çalışma alanı, takvim, hedefler, haftalık değerlendirme ve isteğe bağlı okul modülü için çevrimdışı masaüstü uygulaması.",
   "main": "electron/main.cjs",
   "author": "Ahmet Bektaş",
   "license": "MIT",
@@ -16,14 +16,15 @@
     "dist:win": "npm run build && electron-builder --win nsis --publish never"
   },
   "dependencies": {
+    "pdfjs-dist": "^5.7.284",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^4.7.0",
     "@types/node": "^24.10.1",
     "@types/react": "^19.1.17",
     "@types/react-dom": "^19.1.11",
+    "@vitejs/plugin-react": "^4.7.0",
     "concurrently": "^9.2.1",
     "cross-env": "^10.1.0",
     "electron": "^37.6.0",

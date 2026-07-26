@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { AppData, Goal, GoalCategory } from "../types";
 import { uid } from "../lib/data";
 import Icon from "./Icon";
@@ -7,6 +7,7 @@ interface GoalsPageProps {
   data: AppData;
   onDataChange: (data: AppData) => void;
   onToast: (message: string) => void;
+  focusGoalId?: string | null;
 }
 
 const CATEGORIES: Record<GoalCategory, string> = {
@@ -20,13 +21,23 @@ const CATEGORIES: Record<GoalCategory, string> = {
 export default function GoalsPage({
   data,
   onDataChange,
-  onToast
+  onToast,
+  focusGoalId
 }: GoalsPageProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState<GoalCategory>("personal");
   const [deadline, setDeadline] = useState("");
   const [showForm, setShowForm] = useState(false);
+
+  useEffect(() => {
+    if (!focusGoalId) return;
+    requestAnimationFrame(() =>
+      document
+        .querySelector(`[data-goal-id="${focusGoalId}"]`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" })
+    );
+  }, [focusGoalId]);
 
   const average = useMemo(
     () =>
@@ -167,8 +178,9 @@ export default function GoalsPage({
         <div className="goal-cards">
           {data.goals.map((goal) => (
             <article
-              className={`goal-card-item ${goal.progress === 100 ? "complete" : ""}`}
+              className={`goal-card-item ${goal.progress === 100 ? "complete" : ""} ${focusGoalId === goal.id ? "highlight" : ""}`}
               key={goal.id}
+              data-goal-id={goal.id}
             >
               <div className="goal-card-top">
                 <span className={`goal-category ${goal.category}`}>

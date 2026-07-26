@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { AppData, Note } from "../types";
+import type { AppData, Note, NoteTemplate } from "../types";
 import { uid } from "../lib/data";
+import { allTemplates } from "../lib/templates";
 import Icon from "./Icon";
+import Modal from "./Modal";
 import PdfAttachments from "./PdfAttachments";
 import Recorder from "./Recorder";
 
@@ -12,6 +14,8 @@ interface NotesPageProps {
   activeCourseId: string | null;
   search: string;
   onToast: (message: string) => void;
+  focusNoteId?: string | null;
+  focusAttachmentId?: string | null;
 }
 
 function formatDate(date: string) {
@@ -78,12 +82,15 @@ export default function NotesPage({
   scope,
   activeCourseId,
   search,
-  onToast
+  onToast,
+  focusNoteId,
+  focusAttachmentId
 }: NotesPageProps) {
   const [selectedId, setSelectedId] = useState<string | null>(
     data.notes[0]?.id ?? null
   );
   const [preview, setPreview] = useState(false);
+  const [templatePicker, setTemplatePicker] = useState(false);
   const editorRef = useRef<HTMLTextAreaElement>(null);
   const query = search.trim().toLocaleLowerCase("tr-TR");
 
@@ -122,7 +129,13 @@ export default function NotesPage({
     }
   }, [notes, selectedId]);
 
-  function createNote() {
+  useEffect(() => {
+    if (focusNoteId && data.notes.some((note) => note.id === focusNoteId)) {
+      setSelectedId(focusNoteId);
+    }
+  }, [data.notes, focusNoteId]);
+
+  function createNote(template?: NoteTemplate) {
     const courseId =
       scope === "personal" ? null : activeCourseId ?? data.courses[0]?.id ?? null;
     if (scope === "school" && !courseId) {
@@ -133,10 +146,10 @@ export default function NotesPage({
     const note: Note = {
       id: uid(),
       courseId,
-      topic: "Yeni konu",
-      title: "Başlıksız not",
-      content: "",
-      tags: [],
+      topic: template?.topic || "Yeni konu",
+      title: template?.title || "Başlıksız not",
+      content: template?.content || "",
+      tags: template?.tags || [],
       favorite: false,
       createdAt: now,
       updatedAt: now,
@@ -146,6 +159,12 @@ export default function NotesPage({
     onDataChange({ ...data, notes: [note, ...data.notes] });
     setSelectedId(note.id);
     setPreview(false);
+    setTemplatePicker(false);
+    onToast(
+      template
+        ? `“${template.name}” şablonuyla not oluşturuldu.`
+        : "Yeni not oluşturuldu."
+    );
   }
 
   function updateNote(patch: Partial<Note>) {
@@ -224,7 +243,11 @@ export default function NotesPage({
                   : "Tüm ders notları"}
             </h1>
           </div>
-          <button className="primary-square" onClick={createNote} aria-label="Not ekle">
+          <button
+            className="primary-square"
+            onClick={() => setTemplatePicker(true)}
+            aria-label="Not ekle"
+          >
             <Icon name="plus" size={20} />
           </button>
         </div>
@@ -283,7 +306,10 @@ export default function NotesPage({
             </div>
             <h2>Bir not seç</h2>
             <p>Soldaki listeden bir not aç veya yeni not oluştur.</p>
-            <button className="primary-button" onClick={createNote}>
+            <button
+              className="primary-button"
+              onClick={() => setTemplatePicker(true)}
+            >
               <Icon name="plus" size={17} />
               Yeni not
             </button>
@@ -397,6 +423,9 @@ export default function NotesPage({
               <PdfAttachments
                 attachments={selected.attachments}
                 onChange={(attachments) => updateNote({ attachments })}
+                focusAttachmentId={
+                  selected.id === focusNoteId ? focusAttachmentId : null
+                }
               />
 
               <Recorder
@@ -414,6 +443,37 @@ export default function NotesPage({
           </>
         )}
       </main>
+
+      {templatePicker && (
+        <Modal title="Yeni not oluştur" onClose={() => setTemplatePicker(false)}>
+          <div className="template-picker">
+            {allTemplates(data.templates)
+              .filter(
+                (template) =>
+                  template.id === "blank" || template.scope === scope
+              )
+              .map((template) => (
+                <button
+                  key={template.id}
+                  onClick={() => createNote(template)}
+                >
+                  <span className={`template-picker-icon ${template.scope}`}>
+                    <Icon
+                      name={
+                        template.scope === "school" ? "school" : "template"
+                      }
+                      size={19}
+                    />
+                  </span>
+                  <span>
+                    <strong>{template.name}</strong>
+                    <small>{template.description}</small>
+                  </span>
+                </button>
+              ))}
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

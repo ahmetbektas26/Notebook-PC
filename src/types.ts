@@ -1,8 +1,10 @@
 export type Page =
   | "today"
   | "calendar"
+  | "review"
   | "goals"
   | "notes"
+  | "templates"
   | "school"
   | "settings";
 export type RepeatMode = "none" | "daily" | "weekly";
@@ -36,6 +38,20 @@ export interface PdfAttachment {
   originalName: string;
   size: number;
   createdAt: string;
+  annotations: PdfAnnotation[];
+}
+
+export interface PdfAnnotation {
+  id: string;
+  type: "underline" | "note";
+  page: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  text: string;
+  color: string;
+  createdAt: string;
 }
 
 export interface Note {
@@ -62,6 +78,7 @@ export interface PlannerItem {
   reminder: boolean;
   repeat: RepeatMode;
   completed: boolean;
+  completedAt?: string;
   createdAt: string;
 }
 
@@ -99,14 +116,49 @@ export interface AppSettings {
   currentGpa: number;
 }
 
+export interface NoteTemplate {
+  id: string;
+  name: string;
+  description: string;
+  scope: "personal" | "school";
+  topic: string;
+  title: string;
+  content: string;
+  tags: string[];
+  createdAt: string;
+}
+
+export interface FocusSession {
+  id: string;
+  minutes: number;
+  completedAt: string;
+}
+
+export interface WeeklyReflection {
+  weekStart: string;
+  wins: string;
+  lessons: string;
+  nextWeek: string;
+  updatedAt: string;
+}
+
 export interface AppData {
-  version: 3;
+  version: 4;
   courses: Course[];
   notes: Note[];
   plannerItems: PlannerItem[];
   goals: Goal[];
   grades: GradeEntry[];
+  templates: NoteTemplate[];
+  focusSessions: FocusSession[];
+  weeklyReflections: WeeklyReflection[];
   settings: AppSettings;
+}
+
+export interface SecurityStatus {
+  enabled: boolean;
+  locked: boolean;
+  autoLockMinutes: number;
 }
 
 export interface ReminderForSystem {

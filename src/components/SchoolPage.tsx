@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { AppData, Course } from "../types";
 import { COURSE_COLORS, uid } from "../lib/data";
 import NotesPage from "./NotesPage";
@@ -10,12 +10,20 @@ interface SchoolPageProps {
   data: AppData;
   onDataChange: (data: AppData) => void;
   onToast: (message: string) => void;
+  focusNoteId?: string | null;
+  focusAttachmentId?: string | null;
+  focusCourseId?: string | null;
+  focusGradeId?: string | null;
 }
 
 export default function SchoolPage({
   data,
   onDataChange,
-  onToast
+  onToast,
+  focusNoteId,
+  focusAttachmentId,
+  focusCourseId,
+  focusGradeId
 }: SchoolPageProps) {
   const [tab, setTab] = useState<"notes" | "grades">("notes");
   const [activeCourseId, setActiveCourseId] = useState<string | null>(null);
@@ -23,6 +31,23 @@ export default function SchoolPage({
   const [courseName, setCourseName] = useState("");
   const [courseCode, setCourseCode] = useState("");
   const [courseColor, setCourseColor] = useState(COURSE_COLORS[0]);
+
+  useEffect(() => {
+    if (focusGradeId) {
+      setTab("grades");
+      return;
+    }
+    const note = data.notes.find((item) => item.id === focusNoteId);
+    if (note?.courseId) {
+      setTab("notes");
+      setActiveCourseId(note.courseId);
+      return;
+    }
+    if (focusCourseId) {
+      setTab("notes");
+      setActiveCourseId(focusCourseId);
+    }
+  }, [data.notes, focusCourseId, focusGradeId, focusNoteId]);
 
   function addCourse(event: React.FormEvent) {
     event.preventDefault();
@@ -106,6 +131,8 @@ export default function SchoolPage({
               activeCourseId={activeCourseId}
               search=""
               onToast={onToast}
+              focusNoteId={focusNoteId}
+              focusAttachmentId={focusAttachmentId}
             />
           </div>
         </div>

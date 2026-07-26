@@ -1,18 +1,25 @@
 import { useEffect, useState } from "react";
-import type { AppData } from "../types";
-import { migrateAppData } from "../lib/data";
+import type { AppData, SecurityStatus } from "../types";
+import DataTransfer from "./DataTransfer";
 import Icon from "./Icon";
+import SecuritySettings from "./SecuritySettings";
 
 interface SettingsPageProps {
   data: AppData;
   onDataChange: (data: AppData) => void;
   onToast: (message: string) => void;
+  securityStatus: SecurityStatus;
+  onSecurityStatusChange: (status: SecurityStatus) => void;
+  onLock: () => void;
 }
 
 export default function SettingsPage({
   data,
   onDataChange,
-  onToast
+  onToast,
+  securityStatus,
+  onSecurityStatusChange,
+  onLock
 }: SettingsPageProps) {
   const [storagePath, setStoragePath] = useState("Yerel uygulama verisi");
   const [launchAtLogin, setLaunchAtLogin] = useState(false);
@@ -40,48 +47,6 @@ export default function SettingsPage({
         ? "Windows başlangıcında açılacak."
         : "Otomatik başlangıç kapatıldı."
     );
-  }
-
-  async function exportData() {
-    if (window.notebookAPI) {
-      const path = await window.notebookAPI.exportBackup(data);
-      if (path) onToast("Yedek dosyası oluşturuldu.");
-      return;
-    }
-    const blob = new Blob([JSON.stringify(data, null, 2)], {
-      type: "application/json"
-    });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = "Notebook-PC-yedek.json";
-    link.click();
-    URL.revokeObjectURL(link.href);
-  }
-
-  async function importData() {
-    if (!window.notebookAPI) {
-      onToast("Yedek içe aktarma masaüstü sürümünde kullanılabilir.");
-      return;
-    }
-    try {
-      const imported = await window.notebookAPI.importBackup();
-      if (!imported) return;
-      const normalized = migrateAppData(imported);
-      if (!normalized) {
-        onToast("Bu dosya geçerli bir Notebook-PC yedeği değil.");
-        return;
-      }
-      if (
-        window.confirm(
-          "Mevcut notlar yedekteki verilerle değiştirilecek. Devam edilsin mi?"
-        )
-      ) {
-        onDataChange(normalized);
-        onToast("Yedek başarıyla geri yüklendi.");
-      }
-    } catch {
-      onToast("Yedek dosyası okunamadı.");
-    }
   }
 
   return (
@@ -144,27 +109,19 @@ export default function SettingsPage({
           </div>
         </section>
 
-        <section className="settings-card">
-          <div className="settings-card-head">
-            <div className="card-icon green">
-              <Icon name="download" size={22} />
-            </div>
-            <div>
-              <h2>Yedekleme</h2>
-              <p>Tüm ders, not, alarm ve ortalama verilerini JSON olarak sakla.</p>
-            </div>
-          </div>
-          <div className="backup-actions">
-            <button className="primary-button" onClick={exportData}>
-              <Icon name="download" size={17} />
-              Yedek dışa aktar
-            </button>
-            <button className="secondary-button" onClick={importData}>
-              <Icon name="upload" size={17} />
-              Yedekten geri yükle
-            </button>
-          </div>
-        </section>
+        <DataTransfer
+          data={data}
+          onDataChange={onDataChange}
+          onToast={onToast}
+        />
+
+        <SecuritySettings
+          data={data}
+          status={securityStatus}
+          onStatusChange={onSecurityStatusChange}
+          onLock={onLock}
+          onToast={onToast}
+        />
 
         <section className="settings-card">
           <div className="settings-card-head">
@@ -251,8 +208,8 @@ export default function SettingsPage({
         <div>
           <strong>Önce gizlilik</strong>
           <span>
-            Uygulama üyelik istemez; kişisel veriler yalnızca kendi bilgisayarında
-            tutulur.
+            Uygulama üyelik istemez. Yerel kasa açıksa notların, PDF’lerin ve
+            ses kayıtların cihazında şifreli tutulur.
           </span>
         </div>
       </div>

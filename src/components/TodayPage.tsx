@@ -55,6 +55,17 @@ export default function TodayPage({
       setFocusSeconds((current) => {
         if (current <= 1) {
           setFocusRunning(false);
+          onDataChange({
+            ...data,
+            focusSessions: [
+              {
+                id: uid(),
+                minutes: 25,
+                completedAt: new Date().toISOString()
+              },
+              ...data.focusSessions
+            ]
+          });
           onToast("Odak süresi tamamlandı.");
           return 25 * 60;
         }
@@ -62,7 +73,7 @@ export default function TodayPage({
       });
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [focusRunning, onToast]);
+  }, [data, focusRunning, onDataChange, onToast]);
 
   function addQuick(event: React.FormEvent) {
     event.preventDefault();
@@ -89,7 +100,13 @@ export default function TodayPage({
     onDataChange({
       ...data,
       plannerItems: data.plannerItems.map((item) =>
-        item.id === id ? { ...item, completed: !item.completed } : item
+        item.id === id
+          ? {
+              ...item,
+              completed: !item.completed,
+              completedAt: item.completed ? undefined : new Date().toISOString()
+            }
+          : item
       )
     });
   }

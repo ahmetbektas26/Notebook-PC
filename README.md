@@ -12,8 +12,12 @@ düzenlemek için hazırlanmış çevrimdışı bir masaüstü uygulamasıdır.
 - İlerleme yüzdesi ve bitiş tarihi bulunan kişisel hedefler
 - 25 dakikalık yerleşik odak sayacı
 - Okuldan bağımsız Markdown destekli genel not defteri
-- Genel ve okul notlarına çoklu PDF ekleme, sürükle-bırak, açma ve silme
-- Etiketleme, arama ve favorilere alma
+- Genel ve okul notlarına çoklu PDF ekleme ve sürükle-bırak
+- Uygulama içi PDF okuyucu, sayfa üzerinde altını çizme ve sayfaya açıklama bağlama
+- Not, PDF adı/açıklaması, hedef, takvim ve dersleri kapsayan genel arama
+- Hazır ve kullanıcı tarafından oluşturulabilen not şablonları
+- Tamamlama oranı, odak süresi ve haftalık düşünce alanı bulunan haftalık değerlendirme
+- Etiketleme ve favorilere alma
 - Mikrofonla sesli not kaydetme ve oynatma
 - Gün/saat seçilebilen tek seferlik, günlük veya haftalık masaüstü alarmları
 - Ders notları ve ortalama araçları için günlük hayattan ayrılmış **Okul** modülü
@@ -21,14 +25,15 @@ düzenlemek için hazırlanmış çevrimdışı bir masaüstü uygulamasıdır.
 - AKTS ağırlıklı dönem, tahmini genel ve hedef mezuniyet ortalaması
 - Alarmların kaçmaması için Windows ile arka planda otomatik başlatma
 - Açık/koyu tema
-- JSON yedeği dışa aktarma ve geri yükleme
+- JSON, Markdown, CSV ve PDF içe/dışa aktarma
+- Şifreli yerel kasa, uygulama kilidi ve otomatik kilitleme
 - Tamamen yerel veri saklama; hesap veya internet gerektirmez
 
 ## Windows'a kurma
 
 GitHub'daki **Actions → Windows kurulum dosyası → Run workflow** yolunu izleyin.
 İşlem tamamlandığında çalışmanın altındaki `Notebook-PC-Windows` dosyasını
-indirin, ZIP'i açın ve `Notebook-PC-Setup-1.2.0.exe` dosyasını çalıştırın.
+indirin, ZIP'i açın ve `Notebook-PC-Setup-1.3.0.exe` dosyasını çalıştırın.
 
 Yerelde kurulum dosyası üretmek için:
 
@@ -59,9 +64,10 @@ npm run build
 ## Veriler nerede tutulur?
 
 Electron uygulaması verileri işletim sisteminin standart uygulama verisi
-klasöründeki `notebook-data.json` dosyasında, ses kayıtlarını `recordings/` ve
-PDF eklerini `attachments/` klasöründe saklar. Tam konumu uygulamanın
-**Ayarlar → Yerel veri alanı** bölümünde görebilirsiniz.
+klasöründe; ses kayıtlarını `recordings/`, PDF eklerini `attachments/`
+klasöründe saklar. Yerel kasa etkinleştirildiğinde veri dosyası, sesler ve
+PDF'ler AES-256-GCM ile şifrelenir. Tam konumu uygulamanın **Ayarlar → Yerel
+veri alanı** bölümünde görebilirsiniz.
 
 ## Not sistemi
 

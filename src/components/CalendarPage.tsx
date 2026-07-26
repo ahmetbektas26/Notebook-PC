@@ -198,7 +198,12 @@ export default function CalendarPage({
                   <button
                     className="check-button"
                     onClick={() =>
-                      updateItem(item.id, { completed: !item.completed })
+                      updateItem(item.id, {
+                        completed: !item.completed,
+                        completedAt: item.completed
+                          ? undefined
+                          : new Date().toISOString()
+                      })
                     }
                   >
                     {item.completed && <Icon name="check" size={14} />}

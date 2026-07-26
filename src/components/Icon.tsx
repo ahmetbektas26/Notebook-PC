@@ -27,7 +27,12 @@ export type IconName =
   | "target"
   | "home"
   | "rotate"
-  | "file";
+  | "file"
+  | "template"
+  | "lock"
+  | "unlock"
+  | "weekly"
+  | "external";
 
 const paths: Record<IconName, React.ReactNode> = {
   book: (
@@ -150,6 +155,36 @@ const paths: Record<IconName, React.ReactNode> = {
     <>
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
       <path d="M14 2v6h6M8 15h8M8 18h6" />
+    </>
+  ),
+  template: (
+    <>
+      <rect x="3" y="3" width="18" height="18" rx="3" />
+      <path d="M8 3v18M12 8h5M12 12h5M12 16h3" />
+    </>
+  ),
+  lock: (
+    <>
+      <rect x="4" y="10" width="16" height="11" rx="3" />
+      <path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3" />
+    </>
+  ),
+  unlock: (
+    <>
+      <rect x="4" y="10" width="16" height="11" rx="3" />
+      <path d="M8 10V7a4 4 0 0 1 7.4-2M12 14v3" />
+    </>
+  ),
+  weekly: (
+    <>
+      <path d="M4 19V9M10 19v-5M16 19V5M22 19H2" />
+      <path d="m4 7 6 4 6-8" />
+    </>
+  ),
+  external: (
+    <>
+      <path d="M14 3h7v7M10 14 21 3" />
+      <path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5" />
     </>
   )
 };

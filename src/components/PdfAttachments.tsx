@@ -1,11 +1,14 @@
-import { useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import type { PdfAttachment } from "../types";
 import { uid } from "../lib/data";
 import Icon from "./Icon";
 
+const PdfReader = lazy(() => import("./PdfReader"));
+
 interface PdfAttachmentsProps {
   attachments: PdfAttachment[];
   onChange: (attachments: PdfAttachment[]) => void;
+  focusAttachmentId?: string | null;
 }
 
 function formatSize(bytes: number) {
@@ -15,12 +18,25 @@ function formatSize(bytes: number) {
 
 export default function PdfAttachments({
   attachments,
-  onChange
+  onChange,
+  focusAttachmentId
 }: PdfAttachmentsProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [readerId, setReaderId] = useState<string | null>(
+    focusAttachmentId ?? null
+  );
+
+  useEffect(() => {
+    if (
+      focusAttachmentId &&
+      attachments.some((attachment) => attachment.id === focusAttachmentId)
+    ) {
+      setReaderId(focusAttachmentId);
+    }
+  }, [attachments, focusAttachmentId]);
 
   async function addFiles(files: FileList | File[]) {
     const selected = Array.from(files);
@@ -58,7 +74,8 @@ export default function PdfAttachments({
           fileName,
           originalName: file.name,
           size: file.size,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          annotations: []
         });
       }
       onChange([...attachments, ...created]);
@@ -72,13 +89,21 @@ export default function PdfAttachments({
     }
   }
 
-  async function open(attachment: PdfAttachment) {
+  async function openExternal(attachment: PdfAttachment) {
     try {
       setError("");
       await window.notebookAPI?.openAttachment(attachment.fileName);
     } catch {
       setError("PDF açılamadı. Dosya taşınmış veya silinmiş olabilir.");
     }
+  }
+
+  function updateAttachment(updated: PdfAttachment) {
+    onChange(
+      attachments.map((attachment) =>
+        attachment.id === updated.id ? updated : attachment
+      )
+    );
   }
 
   async function remove(attachment: PdfAttachment) {
@@ -140,7 +165,10 @@ export default function PdfAttachments({
           {attachments.map((attachment) => (
             <article key={attachment.id}>
               <div className="pdf-file-icon">PDF</div>
-              <button className="pdf-name" onClick={() => open(attachment)}>
+              <button
+                className="pdf-name"
+                onClick={() => setReaderId(attachment.id)}
+              >
                 <strong>{attachment.originalName}</strong>
                 <span>
                   {formatSize(attachment.size)} ·{" "}
@@ -153,10 +181,17 @@ export default function PdfAttachments({
               </button>
               <button
                 className="pdf-open"
-                onClick={() => open(attachment)}
-                aria-label="PDF'yi aç"
+                onClick={() => setReaderId(attachment.id)}
+                aria-label="PDF'yi uygulamada aç"
               >
-                Aç
+                Oku
+              </button>
+              <button
+                className="plain-icon"
+                onClick={() => openExternal(attachment)}
+                aria-label="PDF'yi Windows'ta aç"
+              >
+                <Icon name="external" size={15} />
               </button>
               <button
                 className="plain-icon"
@@ -169,6 +204,25 @@ export default function PdfAttachments({
           ))}
         </div>
       )}
+
+      {readerId &&
+        attachments.find((attachment) => attachment.id === readerId) && (
+          <Suspense
+            fallback={
+              <div className="pdf-reader-backdrop">
+                <div className="pdf-loading">PDF okuyucu hazırlanıyor…</div>
+              </div>
+            }
+          >
+            <PdfReader
+              attachment={
+                attachments.find((attachment) => attachment.id === readerId)!
+              }
+              onChange={updateAttachment}
+              onClose={() => setReaderId(null)}
+            />
+          </Suspense>
+        )}
     </section>
   );
 }

@@ -17,8 +17,10 @@ const crypto = require("node:crypto");
 let mainWindow;
 let tray;
 let isQuitting = false;
+let encryptionKey = null;
 const reminderTimers = new Map();
 const startHidden = process.argv.includes("--hidden");
+const ENCRYPTION_MAGIC = Buffer.from("NBPCENC1");
 
 const traySvg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64">
@@ -36,6 +38,14 @@ function storageFile() {
   return path.join(app.getPath("userData"), "notebook-data.json");
 }
 
+function encryptedStorageFile() {
+  return path.join(app.getPath("userData"), "notebook-data.enc");
+}
+
+function securityFile() {
+  return path.join(app.getPath("userData"), "security.json");
+}
+
 function recordingsDir() {
   return path.join(app.getPath("userData"), "recordings");
 }
@@ -44,15 +54,140 @@ function attachmentsDir() {
   return path.join(app.getPath("userData"), "attachments");
 }
 
+function openedAttachmentsDir() {
+  return path.join(app.getPath("temp"), "Notebook-PC-opened-pdfs");
+}
+
 async function ensureStorage() {
   await fs.mkdir(recordingsDir(), { recursive: true });
   await fs.mkdir(attachmentsDir(), { recursive: true });
+  await fs.mkdir(openedAttachmentsDir(), { recursive: true });
 }
 
 async function atomicWrite(filePath, text) {
   const temporary = `${filePath}.tmp`;
   await fs.writeFile(temporary, text, "utf8");
   await fs.rename(temporary, filePath);
+}
+
+async function atomicWriteBuffer(filePath, bytes) {
+  const temporary = `${filePath}.tmp`;
+  await fs.writeFile(temporary, bytes);
+  await fs.rename(temporary, filePath);
+}
+
+async function readSecurityConfig() {
+  try {
+    return JSON.parse(await fs.readFile(securityFile(), "utf8"));
+  } catch (error) {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+function deriveKey(passcode, salt) {
+  return crypto.scryptSync(String(passcode), salt, 32);
+}
+
+function encryptBuffer(bytes, key) {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
+  const encrypted = Buffer.concat([cipher.update(bytes), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return Buffer.concat([ENCRYPTION_MAGIC, iv, tag, encrypted]);
+}
+
+function decryptBuffer(bytes, key) {
+  if (!bytes.subarray(0, ENCRYPTION_MAGIC.length).equals(ENCRYPTION_MAGIC)) {
+    return bytes;
+  }
+  const ivStart = ENCRYPTION_MAGIC.length;
+  const tagStart = ivStart + 12;
+  const contentStart = tagStart + 16;
+  const decipher = crypto.createDecipheriv(
+    "aes-256-gcm",
+    key,
+    bytes.subarray(ivStart, tagStart)
+  );
+  decipher.setAuthTag(bytes.subarray(tagStart, contentStart));
+  return Buffer.concat([
+    decipher.update(bytes.subarray(contentStart)),
+    decipher.final()
+  ]);
+}
+
+async function readStoredData(key = encryptionKey) {
+  const config = await readSecurityConfig();
+  if (config) {
+    if (!key) throw new Error("LOCKED");
+    const bytes = await fs.readFile(encryptedStorageFile());
+    return JSON.parse(decryptBuffer(bytes, key).toString("utf8"));
+  }
+  return JSON.parse(await fs.readFile(storageFile(), "utf8"));
+}
+
+async function saveStoredData(data) {
+  const config = await readSecurityConfig();
+  if (config) {
+    if (!encryptionKey) throw new Error("LOCKED");
+    await atomicWriteBuffer(
+      encryptedStorageFile(),
+      encryptBuffer(Buffer.from(JSON.stringify(data)), encryptionKey)
+    );
+    await fs.rm(storageFile(), { force: true });
+    return;
+  }
+  await atomicWrite(storageFile(), JSON.stringify(data, null, 2));
+}
+
+async function transformDirectory(directory, key, encrypt) {
+  let names = [];
+  try {
+    names = await fs.readdir(directory);
+  } catch (error) {
+    if (error.code === "ENOENT") return;
+    throw error;
+  }
+  for (const name of names) {
+    const filePath = path.join(directory, path.basename(name));
+    const bytes = await fs.readFile(filePath);
+    const isEncrypted = bytes
+      .subarray(0, ENCRYPTION_MAGIC.length)
+      .equals(ENCRYPTION_MAGIC);
+    if (encrypt && !isEncrypted) {
+      await atomicWriteBuffer(filePath, encryptBuffer(bytes, key));
+    }
+    if (!encrypt && isEncrypted) {
+      await atomicWriteBuffer(filePath, decryptBuffer(bytes, key));
+    }
+  }
+}
+
+async function readProtectedFile(filePath) {
+  const bytes = await fs.readFile(filePath);
+  const config = await readSecurityConfig();
+  if (!config) return bytes;
+  if (!encryptionKey) throw new Error("LOCKED");
+  return decryptBuffer(bytes, encryptionKey);
+}
+
+async function writeProtectedFile(filePath, bytes) {
+  const config = await readSecurityConfig();
+  if (!config) {
+    await fs.writeFile(filePath, bytes);
+    return;
+  }
+  if (!encryptionKey) throw new Error("LOCKED");
+  await fs.writeFile(filePath, encryptBuffer(bytes, encryptionKey));
+}
+
+async function lockApplication() {
+  const config = await readSecurityConfig();
+  if (!config) return;
+  encryptionKey = null;
+  await fs.rm(openedAttachmentsDir(), { recursive: true, force: true });
+  await fs.mkdir(openedAttachmentsDir(), { recursive: true });
+  mainWindow?.webContents.send("security:locked");
 }
 
 function createWindow() {
@@ -87,6 +222,7 @@ function createWindow() {
     if (!isQuitting) {
       event.preventDefault();
       mainWindow.hide();
+      lockApplication().catch(() => undefined);
     }
   });
 }
@@ -174,6 +310,7 @@ function syncReminders(reminders) {
 }
 
 app.whenReady().then(async () => {
+  await fs.rm(openedAttachmentsDir(), { recursive: true, force: true });
   await ensureStorage();
   session.defaultSession.setPermissionRequestHandler(
     (_webContents, permission, callback) => {
@@ -199,7 +336,7 @@ app.on("window-all-closed", () => {
 
 ipcMain.handle("data:load", async () => {
   try {
-    return JSON.parse(await fs.readFile(storageFile(), "utf8"));
+    return await readStoredData();
   } catch (error) {
     if (error.code === "ENOENT") return null;
     throw error;
@@ -208,11 +345,107 @@ ipcMain.handle("data:load", async () => {
 
 ipcMain.handle("data:save", async (_event, data) => {
   await ensureStorage();
-  await atomicWrite(storageFile(), JSON.stringify(data, null, 2));
+  await saveStoredData(data);
   return true;
 });
 
 ipcMain.handle("data:path", () => app.getPath("userData"));
+
+ipcMain.handle("security:status", async () => {
+  const config = await readSecurityConfig();
+  return {
+    enabled: Boolean(config),
+    locked: Boolean(config) && !encryptionKey,
+    autoLockMinutes: config?.autoLockMinutes ?? 0
+  };
+});
+
+ipcMain.handle("security:unlock", async (_event, passcode) => {
+  const config = await readSecurityConfig();
+  if (!config) return { data: await readStoredData(), status: null };
+  try {
+    const key = deriveKey(passcode, Buffer.from(config.salt, "base64"));
+    const data = await readStoredData(key);
+    encryptionKey = key;
+    return {
+      data,
+      status: {
+        enabled: true,
+        locked: false,
+        autoLockMinutes: config.autoLockMinutes ?? 0
+      }
+    };
+  } catch {
+    throw new Error("Şifre yanlış veya şifreli veri okunamıyor.");
+  }
+});
+
+ipcMain.handle(
+  "security:enable",
+  async (_event, passcode, data, autoLockMinutes) => {
+    if (String(passcode).length < 6) {
+      throw new Error("Şifre en az 6 karakter olmalı.");
+    }
+    const salt = crypto.randomBytes(16);
+    const key = deriveKey(passcode, salt);
+    const config = {
+      version: 1,
+      salt: salt.toString("base64"),
+      autoLockMinutes: Number(autoLockMinutes) || 0
+    };
+    encryptionKey = key;
+    await atomicWrite(securityFile(), JSON.stringify(config, null, 2));
+    await atomicWriteBuffer(
+      encryptedStorageFile(),
+      encryptBuffer(Buffer.from(JSON.stringify(data)), key)
+    );
+    await fs.rm(storageFile(), { force: true });
+    await transformDirectory(recordingsDir(), key, true);
+    await transformDirectory(attachmentsDir(), key, true);
+    return {
+      enabled: true,
+      locked: false,
+      autoLockMinutes: config.autoLockMinutes
+    };
+  }
+);
+
+ipcMain.handle("security:disable", async (_event, passcode, data) => {
+  const config = await readSecurityConfig();
+  if (!config) {
+    return { enabled: false, locked: false, autoLockMinutes: 0 };
+  }
+  try {
+    const key = deriveKey(passcode, Buffer.from(config.salt, "base64"));
+    await readStoredData(key);
+    await transformDirectory(recordingsDir(), key, false);
+    await transformDirectory(attachmentsDir(), key, false);
+    await atomicWrite(storageFile(), JSON.stringify(data, null, 2));
+    await fs.rm(encryptedStorageFile(), { force: true });
+    await fs.rm(securityFile(), { force: true });
+    encryptionKey = null;
+    return { enabled: false, locked: false, autoLockMinutes: 0 };
+  } catch {
+    throw new Error("Şifre yanlış.");
+  }
+});
+
+ipcMain.handle("security:set-auto-lock", async (_event, minutes) => {
+  const config = await readSecurityConfig();
+  if (!config) return null;
+  config.autoLockMinutes = Math.max(0, Number(minutes) || 0);
+  await atomicWrite(securityFile(), JSON.stringify(config, null, 2));
+  return {
+    enabled: true,
+    locked: !encryptionKey,
+    autoLockMinutes: config.autoLockMinutes
+  };
+});
+
+ipcMain.handle("security:lock", async () => {
+  await lockApplication();
+  return true;
+});
 
 ipcMain.handle("app:launch-at-login", (_event, enabled) => {
   app.setLoginItemSettings({
@@ -232,7 +465,7 @@ ipcMain.handle("audio:save", async (_event, arrayBuffer, mimeType) => {
   await ensureStorage();
   const extension = mimeType?.includes("ogg") ? "ogg" : "webm";
   const fileName = `${Date.now()}-${crypto.randomUUID()}.${extension}`;
-  await fs.writeFile(
+  await writeProtectedFile(
     path.join(recordingsDir(), fileName),
     Buffer.from(arrayBuffer)
   );
@@ -241,7 +474,7 @@ ipcMain.handle("audio:save", async (_event, arrayBuffer, mimeType) => {
 
 ipcMain.handle("audio:read", async (_event, fileName) => {
   const safeName = path.basename(fileName);
-  const bytes = await fs.readFile(path.join(recordingsDir(), safeName));
+  const bytes = await readProtectedFile(path.join(recordingsDir(), safeName));
   const extension = path.extname(safeName).slice(1);
   return `data:audio/${extension};base64,${bytes.toString("base64")}`;
 });
@@ -265,16 +498,26 @@ ipcMain.handle(
       throw new Error("PDF dosyası 50 MB sınırını aşıyor.");
     }
     const fileName = `${Date.now()}-${crypto.randomUUID()}.pdf`;
-    await fs.writeFile(path.join(attachmentsDir(), fileName), bytes);
+    await writeProtectedFile(path.join(attachmentsDir(), fileName), bytes);
     return fileName;
   }
 );
 
 ipcMain.handle("attachment:open", async (_event, fileName) => {
   const safeName = path.basename(fileName);
-  const error = await shell.openPath(path.join(attachmentsDir(), safeName));
+  const source = path.join(attachmentsDir(), safeName);
+  const bytes = await readProtectedFile(source);
+  const target = path.join(openedAttachmentsDir(), safeName);
+  await atomicWriteBuffer(target, bytes);
+  const error = await shell.openPath(target);
   if (error) throw new Error(error);
   return true;
+});
+
+ipcMain.handle("attachment:read", async (_event, fileName) => {
+  const safeName = path.basename(fileName);
+  const bytes = await readProtectedFile(path.join(attachmentsDir(), safeName));
+  return `data:application/pdf;base64,${bytes.toString("base64")}`;
 });
 
 ipcMain.handle("attachment:delete", async (_event, fileName) => {
@@ -307,6 +550,93 @@ ipcMain.handle("backup:import", async () => {
   });
   if (result.canceled || result.filePaths.length === 0) return null;
   return JSON.parse(await fs.readFile(result.filePaths[0], "utf8"));
+});
+
+ipcMain.handle(
+  "transfer:export-text",
+  async (_event, content, extension, suggestedName) => {
+    const result = await dialog.showSaveDialog(mainWindow, {
+      title: "Notebook-PC dışa aktarımı",
+      defaultPath: suggestedName,
+      filters: [
+        {
+          name: extension.toUpperCase(),
+          extensions: [extension]
+        }
+      ]
+    });
+    if (result.canceled || !result.filePath) return null;
+    await atomicWrite(result.filePath, String(content));
+    return result.filePath;
+  }
+);
+
+ipcMain.handle(
+  "transfer:export-pdf",
+  async (_event, html, suggestedName) => {
+    const result = await dialog.showSaveDialog(mainWindow, {
+      title: "Notebook-PC PDF dışa aktarımı",
+      defaultPath: suggestedName,
+      filters: [{ name: "PDF", extensions: ["pdf"] }]
+    });
+    if (result.canceled || !result.filePath) return null;
+    const printWindow = new BrowserWindow({
+      show: false,
+      webPreferences: { sandbox: true }
+    });
+    try {
+      const encoded = Buffer.from(String(html)).toString("base64");
+      await printWindow.loadURL(`data:text/html;base64,${encoded}`);
+      const bytes = await printWindow.webContents.printToPDF({
+        printBackground: true,
+        pageSize: "A4"
+      });
+      await fs.writeFile(result.filePath, bytes);
+      return result.filePath;
+    } finally {
+      printWindow.destroy();
+    }
+  }
+);
+
+ipcMain.handle("transfer:import-files", async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: "Notebook-PC'ye aktar",
+    properties: ["openFile", "multiSelections"],
+    filters: [
+      {
+        name: "Desteklenen dosyalar",
+        extensions: ["json", "md", "markdown", "csv", "pdf"]
+      }
+    ]
+  });
+  if (result.canceled) return [];
+  const imported = [];
+  for (const filePath of result.filePaths) {
+    const extension = path.extname(filePath).slice(1).toLowerCase();
+    const name = path.basename(filePath);
+    if (extension === "pdf") {
+      const bytes = await fs.readFile(filePath);
+      if (bytes.length > 50 * 1024 * 1024) {
+        throw new Error(`${name} 50 MB sınırını aşıyor.`);
+      }
+      const storedName = `${Date.now()}-${crypto.randomUUID()}.pdf`;
+      await writeProtectedFile(path.join(attachmentsDir(), storedName), bytes);
+      imported.push({
+        type: "pdf",
+        name,
+        fileName: storedName,
+        size: bytes.length
+      });
+    } else {
+      imported.push({
+        type: extension === "markdown" ? "md" : extension,
+        name,
+        content: await fs.readFile(filePath, "utf8")
+      });
+    }
+  }
+  return imported;
 });
 
 ipcMain.on("window:show", () => {
