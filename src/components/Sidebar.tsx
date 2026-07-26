@@ -1,29 +1,23 @@
-import type { Course, Page } from "../types";
+import type { Page } from "../types";
 import Icon from "./Icon";
 
 interface SidebarProps {
   page: Page;
   onPageChange: (page: Page) => void;
-  courses: Course[];
-  activeCourseId: string | null;
-  onCourseChange: (courseId: string | null) => void;
-  onAddCourse: () => void;
 }
 
 const navItems: Array<{ page: Page; label: string; icon: Parameters<typeof Icon>[0]["name"] }> = [
-  { page: "notes", label: "Notlarım", icon: "book" },
-  { page: "reminders", label: "Planlayıcı", icon: "calendar" },
-  { page: "grades", label: "Not ortalaması", icon: "chart" },
+  { page: "today", label: "Bugün", icon: "home" },
+  { page: "calendar", label: "Takvim", icon: "calendar" },
+  { page: "goals", label: "Kişisel hedefler", icon: "target" },
+  { page: "notes", label: "Not defteri", icon: "book" },
+  { page: "school", label: "Okul", icon: "school" },
   { page: "settings", label: "Ayarlar", icon: "settings" }
 ];
 
 export default function Sidebar({
   page,
-  onPageChange,
-  courses,
-  activeCourseId,
-  onCourseChange,
-  onAddCourse
+  onPageChange
 }: SidebarProps) {
   return (
     <aside className="sidebar">
@@ -52,50 +46,16 @@ export default function Sidebar({
         ))}
       </nav>
 
-      <div className="course-heading">
-        <span>DERSLER</span>
-        <button onClick={onAddCourse} aria-label="Ders ekle">
-          <Icon name="plus" size={16} />
-        </button>
-      </div>
-      <div className="course-list">
-        <button
-          className={page === "notes" && activeCourseId === null ? "active" : ""}
-          onClick={() => {
-            onPageChange("notes");
-            onCourseChange(null);
-          }}
-        >
-          <span className="course-dot all" />
-          Tüm notlar
-          <small>{courses.length}</small>
-        </button>
-        {courses.map((course) => (
-          <button
-            key={course.id}
-            className={
-              page === "notes" && activeCourseId === course.id ? "active" : ""
-            }
-            onClick={() => {
-              onPageChange("notes");
-              onCourseChange(course.id);
-            }}
-          >
-            <span
-              className="course-dot"
-              style={{ backgroundColor: course.color }}
-            />
-            <span className="truncate">{course.name}</span>
-            <small>{course.code}</small>
-          </button>
-        ))}
+      <div className="sidebar-philosophy">
+        <span className="eyebrow">TEK ALAN, TÜM HAYATIN</span>
+        <p>Planların, hedeflerin, notların ve okulun birbirine karışmadan yanında.</p>
       </div>
 
       <div className="sidebar-foot">
-        <div className="avatar">AB</div>
+        <div className="avatar">NP</div>
         <div>
-          <strong>Ahmet Bektaş</strong>
-          <span>Yerel çalışma alanı</span>
+          <strong>Yerel profil</strong>
+          <span>Veriler bu cihazda</span>
         </div>
         <span className="online-dot" />
       </div>

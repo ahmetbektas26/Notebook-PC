@@ -1,20 +1,24 @@
 # Notebook-PC
 
-Notebook-PC; dersleri ve konuları düzenlemek, yazılı ve sesli not almak, çalışma
-alarmları kurmak ve Doğuş Üniversitesi'nin AKTS ağırlıklı sistemine göre not
-ortalaması hesaplamak için hazırlanmış çevrimdışı bir masaüstü uygulamasıdır.
+Notebook-PC; günlük hayatı planlamak, kişisel hedefleri takip etmek, yazılı ve
+sesli not almak, takvim alarmları kurmak ve okul işlerini ayrı bir alanda
+düzenlemek için hazırlanmış çevrimdışı bir masaüstü uygulamasıdır.
 
 ## Özellikler
 
-- Ders → konu → not düzeni
-- Markdown destekli yazılı not editörü ve önizleme
+- Tamamen boş ve kişisel bilgi içermeyen başlangıç
+- Günlük görevler, planlar ve hızlı notlar için **Bugün** ekranı
+- Günlere tıklayarak görev, plan, hedef veya not eklenebilen aylık takvim
+- İlerleme yüzdesi ve bitiş tarihi bulunan kişisel hedefler
+- 25 dakikalık yerleşik odak sayacı
+- Okuldan bağımsız Markdown destekli genel not defteri
 - Etiketleme, arama ve favorilere alma
 - Mikrofonla sesli not kaydetme ve oynatma
 - Gün/saat seçilebilen tek seferlik, günlük veya haftalık masaüstü alarmları
-- Alarmların kaçmaması için Windows ile arka planda otomatik başlatma seçeneği
-- Doğuş Üniversitesi harf notu ve 4.00 katsayı tablosu
-- AKTS ağırlıklı dönem ortalaması ve tahmini genel ortalama
-- Mezuniyet AKTS'sine göre hedef GANO için gereken ortalamayı hesaplama
+- Ders notları ve ortalama araçları için günlük hayattan ayrılmış **Okul** modülü
+- Okul modülünde Doğuş Üniversitesi harf notu ve 4.00 katsayı tablosu
+- AKTS ağırlıklı dönem, tahmini genel ve hedef mezuniyet ortalaması
+- Alarmların kaçmaması için Windows ile arka planda otomatik başlatma
 - Açık/koyu tema
 - JSON yedeği dışa aktarma ve geri yükleme
 - Tamamen yerel veri saklama; hesap veya internet gerektirmez
@@ -23,7 +27,7 @@ ortalaması hesaplamak için hazırlanmış çevrimdışı bir masaüstü uygula
 
 GitHub'daki **Actions → Windows kurulum dosyası → Run workflow** yolunu izleyin.
 İşlem tamamlandığında çalışmanın altındaki `Notebook-PC-Windows` dosyasını
-indirin, ZIP'i açın ve `Notebook-PC-Setup-1.0.0.exe` dosyasını çalıştırın.
+indirin, ZIP'i açın ve `Notebook-PC-Setup-1.1.0.exe` dosyasını çalıştırın.
 
 Yerelde kurulum dosyası üretmek için:
 

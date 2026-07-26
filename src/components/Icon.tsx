@@ -22,7 +22,11 @@ export type IconName =
   | "pin"
   | "more"
   | "clock"
-  | "edit";
+  | "edit"
+  | "school"
+  | "target"
+  | "home"
+  | "rotate";
 
 const paths: Record<IconName, React.ReactNode> = {
   book: (
@@ -114,6 +118,31 @@ const paths: Record<IconName, React.ReactNode> = {
   edit: (
     <>
       <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z" />
+    </>
+  ),
+  school: (
+    <>
+      <path d="m2 10 10-6 10 6-10 6Z" />
+      <path d="M6 12v5c3 2 9 2 12 0v-5M22 10v6" />
+    </>
+  ),
+  target: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="5" />
+      <circle cx="12" cy="12" r="1" />
+    </>
+  ),
+  home: (
+    <>
+      <path d="m3 11 9-8 9 8" />
+      <path d="M5 10v11h14V10M9 21v-7h6v7" />
+    </>
+  ),
+  rotate: (
+    <>
+      <path d="M20 6v5h-5" />
+      <path d="M19 11a8 8 0 1 0 1 5" />
     </>
   )
 };

@@ -7,6 +7,7 @@ import Recorder from "./Recorder";
 interface NotesPageProps {
   data: AppData;
   onDataChange: (data: AppData) => void;
+  scope: "personal" | "school";
   activeCourseId: string | null;
   search: string;
   onToast: (message: string) => void;
@@ -73,6 +74,7 @@ function MarkdownPreview({ content }: { content: string }) {
 export default function NotesPage({
   data,
   onDataChange,
+  scope,
   activeCourseId,
   search,
   onToast
@@ -87,7 +89,15 @@ export default function NotesPage({
   const notes = useMemo(
     () =>
       data.notes
-        .filter((note) => !activeCourseId || note.courseId === activeCourseId)
+        .filter((note) =>
+          scope === "personal" ? note.courseId === null : note.courseId !== null
+        )
+        .filter(
+          (note) =>
+            scope === "personal" ||
+            !activeCourseId ||
+            note.courseId === activeCourseId
+        )
         .filter((note) => {
           if (!query) return true;
           return [note.title, note.topic, note.content, ...note.tags]
@@ -100,11 +110,10 @@ export default function NotesPage({
             Number(b.favorite) - Number(a.favorite) ||
             new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
         ),
-    [activeCourseId, data.notes, query]
+    [activeCourseId, data.notes, query, scope]
   );
 
-  const selected =
-    data.notes.find((note) => note.id === selectedId) ?? notes[0] ?? null;
+  const selected = notes.find((note) => note.id === selectedId) ?? notes[0] ?? null;
 
   useEffect(() => {
     if (notes.length && !notes.some((note) => note.id === selectedId)) {
@@ -113,8 +122,9 @@ export default function NotesPage({
   }, [notes, selectedId]);
 
   function createNote() {
-    const courseId = activeCourseId ?? data.courses[0]?.id;
-    if (!courseId) {
+    const courseId =
+      scope === "personal" ? null : activeCourseId ?? data.courses[0]?.id ?? null;
+    if (scope === "school" && !courseId) {
       onToast("Önce bir ders eklemelisin.");
       return;
     }
@@ -191,14 +201,23 @@ export default function NotesPage({
   const course = selected
     ? data.courses.find((item) => item.id === selected.courseId)
     : null;
+  const activeCourse = data.courses.find((item) => item.id === activeCourseId);
 
   return (
     <div className="notes-layout">
       <section className="notes-index">
         <div className="notes-index-head">
           <div>
-            <span className="eyebrow">ÇALIŞMA ALANI</span>
-            <h1>{activeCourseId ? course?.name ?? "Ders notları" : "Tüm notlar"}</h1>
+            <span className="eyebrow">
+              {scope === "personal" ? "KİŞİSEL ALAN" : "DERS NOTLARI"}
+            </span>
+            <h1>
+              {scope === "personal"
+                ? "Not defteri"
+                : activeCourseId
+                  ? activeCourse?.name ?? "Ders notları"
+                  : "Tüm ders notları"}
+            </h1>
           </div>
           <button className="primary-square" onClick={createNote} aria-label="Not ekle">
             <Icon name="plus" size={20} />
@@ -228,7 +247,9 @@ export default function NotesPage({
                 >
                   <div className="note-card-meta">
                     <span style={{ color: noteCourse?.color }}>
-                      {noteCourse?.code || noteCourse?.name}
+                      {scope === "personal"
+                        ? "Kişisel"
+                        : noteCourse?.code || noteCourse?.name}
                     </span>
                     {note.favorite && <Icon name="star" size={14} />}
                   </div>
@@ -268,12 +289,18 @@ export default function NotesPage({
               <div className="editor-breadcrumb">
                 <span
                   className="course-chip"
-                  style={{
-                    color: course?.color,
-                    backgroundColor: `${course?.color}18`
-                  }}
+                  style={
+                    scope === "school"
+                      ? {
+                          color: course?.color,
+                          backgroundColor: `${course?.color}18`
+                        }
+                      : undefined
+                  }
                 >
-                  {course?.code || course?.name || "Ders"}
+                  {scope === "personal"
+                    ? "Kişisel not"
+                    : course?.code || course?.name || "Ders"}
                 </span>
                 <span>/</span>
                 <input

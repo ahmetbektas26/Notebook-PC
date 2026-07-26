@@ -1,6 +1,19 @@
-export type Page = "notes" | "reminders" | "grades" | "settings";
+export type Page =
+  | "today"
+  | "calendar"
+  | "goals"
+  | "notes"
+  | "school"
+  | "settings";
 export type RepeatMode = "none" | "daily" | "weekly";
 export type Theme = "light" | "dark";
+export type PlannerKind = "task" | "plan" | "note" | "goal";
+export type GoalCategory =
+  | "personal"
+  | "health"
+  | "career"
+  | "finance"
+  | "learning";
 
 export interface Course {
   id: string;
@@ -19,7 +32,7 @@ export interface AudioNote {
 
 export interface Note {
   id: string;
-  courseId: string;
+  courseId: string | null;
   topic: string;
   title: string;
   content: string;
@@ -30,13 +43,26 @@ export interface Note {
   audio: AudioNote[];
 }
 
-export interface Reminder {
+export interface PlannerItem {
   id: string;
   title: string;
-  courseId: string | null;
-  dueAt: string;
+  details: string;
+  date: string;
+  time: string;
+  kind: PlannerKind;
+  reminder: boolean;
   repeat: RepeatMode;
   completed: boolean;
+  createdAt: string;
+}
+
+export interface Goal {
+  id: string;
+  title: string;
+  description: string;
+  category: GoalCategory;
+  progress: number;
+  deadline: string;
   createdAt: string;
 }
 
@@ -65,14 +91,20 @@ export interface AppSettings {
 }
 
 export interface AppData {
-  version: 1;
+  version: 2;
   courses: Course[];
   notes: Note[];
-  reminders: Reminder[];
+  plannerItems: PlannerItem[];
+  goals: Goal[];
   grades: GradeEntry[];
   settings: AppSettings;
 }
 
-export interface ReminderForSystem extends Reminder {
+export interface ReminderForSystem {
+  id: string;
+  title: string;
+  dueAt: string;
+  repeat: RepeatMode;
+  completed: boolean;
   courseName?: string;
 }

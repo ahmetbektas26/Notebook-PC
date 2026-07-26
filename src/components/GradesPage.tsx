@@ -18,8 +18,8 @@ export default function GradesPage({
   data,
   onDataChange
 }: GradesPageProps) {
-  const [targetGpa, setTargetGpa] = useState(2.6);
-  const [graduationCredits, setGraduationCredits] = useState(230);
+  const [targetGpa, setTargetGpa] = useState(3);
+  const [graduationCredits, setGraduationCredits] = useState(240);
   const term = useMemo(() => calculateTermGpa(data.grades), [data.grades]);
   const projected = calculateProjectedGpa(
     data.settings.currentCredits,
@@ -74,14 +74,14 @@ export default function GradesPage({
     <div className="page-scroll">
       <div className="page-heading">
         <div>
-          <span className="eyebrow">DOĞUŞ ÜNİVERSİTESİ</span>
+          <span className="eyebrow">OKUL · AKADEMİK HESAPLAR</span>
           <h1>AKTS ağırlıklı not ortalaması</h1>
           <p>
             Derslerin AKTS ve harf notlarını gir; dönem ve tahmini genel ortalaman
             anında hesaplansın.
           </p>
         </div>
-        <span className="dogus-badge">DOU · 4.00 sistemi</span>
+        <span className="dogus-badge">Doğuş Üniversitesi not ölçeği</span>
       </div>
 
       <div className="grade-overview">

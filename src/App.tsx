@@ -1,25 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
-import type { AppData, Course, Page } from "./types";
-import { COURSE_COLORS, loadAppData, persistAppData, uid } from "./lib/data";
+import type { AppData, Page } from "./types";
+import { loadAppData, persistAppData } from "./lib/data";
 import Sidebar from "./components/Sidebar";
 import NotesPage from "./components/NotesPage";
-import RemindersPage from "./components/RemindersPage";
-import GradesPage from "./components/GradesPage";
 import SettingsPage from "./components/SettingsPage";
-import Modal from "./components/Modal";
 import Icon from "./components/Icon";
+import TodayPage from "./components/TodayPage";
+import CalendarPage from "./components/CalendarPage";
+import GoalsPage from "./components/GoalsPage";
+import SchoolPage from "./components/SchoolPage";
 
 export default function App() {
   const [data, setData] = useState<AppData | null>(null);
-  const [page, setPage] = useState<Page>("notes");
-  const [activeCourseId, setActiveCourseId] = useState<string | null>(null);
+  const [page, setPage] = useState<Page>("today");
   const [search, setSearch] = useState("");
-  const [courseModal, setCourseModal] = useState(false);
-  const [courseName, setCourseName] = useState("");
-  const [courseCode, setCourseCode] = useState("");
-  const [courseColor, setCourseColor] = useState(COURSE_COLORS[0]);
   const [toast, setToast] = useState("");
-  const [focusReminderId, setFocusReminderId] = useState<string | null>(null);
+  const [focusItemId, setFocusItemId] = useState<string | null>(null);
   useEffect(() => {
     loadAppData().then((loaded) => {
       setData(loaded);
@@ -30,11 +26,15 @@ export default function App() {
     if (!data) return;
     document.documentElement.dataset.theme = data.settings.theme;
     const timer = window.setTimeout(() => persistAppData(data), 350);
-    const reminders = data.reminders.map((reminder) => ({
-      ...reminder,
-      courseName: data.courses.find((course) => course.id === reminder.courseId)
-        ?.name
-    }));
+    const reminders = data.plannerItems
+      .filter((item) => item.reminder && item.time && !item.completed)
+      .map((item) => ({
+        id: item.id,
+        title: item.title,
+        dueAt: new Date(`${item.date}T${item.time}:00`).toISOString(),
+        repeat: item.repeat,
+        completed: item.completed
+      }));
     window.notebookAPI?.syncReminders(reminders);
     return () => window.clearTimeout(timer);
   }, [data]);
@@ -55,8 +55,8 @@ export default function App() {
 
   useEffect(() => {
     const unsubscribe = window.notebookAPI?.onReminderOpen((id) => {
-      setPage("reminders");
-      setFocusReminderId(id);
+      setPage("calendar");
+      setFocusItemId(id);
     });
     return unsubscribe;
   }, []);
@@ -69,32 +69,12 @@ export default function App() {
 
   const placeholder = useMemo(() => {
     if (page === "notes") return "Notlarda, konularda ve etiketlerde ara…";
-    if (page === "reminders") return "Planlayıcı açık";
-    if (page === "grades") return "Doğuş Üniversitesi AKTS sistemi";
-    return "Yerel ve çevrimdışı";
+    if (page === "today") return "Bugünün merkezi";
+    if (page === "calendar") return "Takvim ve planlar";
+    if (page === "goals") return "Kişisel hedefler";
+    if (page === "school") return "Okul alanı";
+    return "Yerel, özel ve çevrimdışı";
   }, [page]);
-
-  function addCourse(event: React.FormEvent) {
-    event.preventDefault();
-    if (!data || !courseName.trim()) return;
-    const course: Course = {
-      id: uid(),
-      name: courseName.trim(),
-      code: courseCode.trim(),
-      color: courseColor,
-      createdAt: new Date().toISOString()
-    };
-    setData({ ...data, courses: [...data.courses, course] });
-    setActiveCourseId(course.id);
-    setPage("notes");
-    setCourseName("");
-    setCourseCode("");
-    setCourseColor(
-      COURSE_COLORS[(data.courses.length + 1) % COURSE_COLORS.length]
-    );
-    setCourseModal(false);
-    setToast("Ders eklendi.");
-  }
 
   if (!data) {
     return (
@@ -114,10 +94,6 @@ export default function App() {
       <Sidebar
         page={page}
         onPageChange={setPage}
-        courses={data.courses}
-        activeCourseId={activeCourseId}
-        onCourseChange={setActiveCourseId}
-        onAddCourse={() => setCourseModal(true)}
       />
       <section className="workspace">
         <header className="topbar">
@@ -147,36 +123,57 @@ export default function App() {
             </div>
             <button
               className="notification-button"
-              onClick={() => setPage("reminders")}
+              onClick={() => setPage("calendar")}
               aria-label="Alarmlar"
             >
               <Icon name="bell" size={19} />
-              {data.reminders.some((item) => !item.completed) && <span />}
+              {data.plannerItems.some(
+                (item) => item.reminder && !item.completed
+              ) && <span />}
             </button>
           </div>
         </header>
 
         <div className="page-host">
+          {page === "today" && (
+            <TodayPage
+              data={data}
+              onDataChange={setData}
+              onNavigate={setPage}
+              onToast={setToast}
+            />
+          )}
+          {page === "calendar" && (
+            <CalendarPage
+              data={data}
+              onDataChange={setData}
+              focusItemId={focusItemId}
+              onToast={setToast}
+            />
+          )}
+          {page === "goals" && (
+            <GoalsPage
+              data={data}
+              onDataChange={setData}
+              onToast={setToast}
+            />
+          )}
           {page === "notes" && (
             <NotesPage
               data={data}
               onDataChange={setData}
-              activeCourseId={activeCourseId}
+              scope="personal"
+              activeCourseId={null}
               search={search}
               onToast={setToast}
             />
           )}
-          {page === "reminders" && (
-            <RemindersPage
+          {page === "school" && (
+            <SchoolPage
               data={data}
               onDataChange={setData}
-              focusReminderId={focusReminderId}
-              onFocusHandled={() => setFocusReminderId(null)}
               onToast={setToast}
             />
-          )}
-          {page === "grades" && (
-            <GradesPage data={data} onDataChange={setData} />
           )}
           {page === "settings" && (
             <SettingsPage
@@ -187,51 +184,6 @@ export default function App() {
           )}
         </div>
       </section>
-
-      {courseModal && (
-        <Modal title="Yeni ders ekle" onClose={() => setCourseModal(false)}>
-          <form className="modal-form" onSubmit={addCourse}>
-            <label>
-              Ders adı
-              <input
-                value={courseName}
-                onChange={(event) => setCourseName(event.target.value)}
-                placeholder="Örn. Operating Systems"
-                autoFocus
-              />
-            </label>
-            <label>
-              Ders kodu
-              <input
-                value={courseCode}
-                onChange={(event) => setCourseCode(event.target.value)}
-                placeholder="Örn. COME 304"
-              />
-            </label>
-            <fieldset>
-              <legend>Renk</legend>
-              <div className="color-picker">
-                {COURSE_COLORS.map((color) => (
-                  <button
-                    type="button"
-                    key={color}
-                    className={courseColor === color ? "active" : ""}
-                    style={{ backgroundColor: color }}
-                    onClick={() => setCourseColor(color)}
-                    aria-label={`Renk ${color}`}
-                  >
-                    {courseColor === color && <Icon name="check" size={16} />}
-                  </button>
-                ))}
-              </div>
-            </fieldset>
-            <button className="primary-button wide" type="submit">
-              <Icon name="plus" size={17} />
-              Dersi ekle
-            </button>
-          </form>
-        </Modal>
-      )}
 
       {toast && (
         <div className="toast">

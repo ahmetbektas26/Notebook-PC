@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { AppData } from "../types";
-import { isValidAppData } from "../lib/data";
+import { migrateAppData } from "../lib/data";
 import Icon from "./Icon";
 
 interface SettingsPageProps {
@@ -66,7 +66,8 @@ export default function SettingsPage({
     try {
       const imported = await window.notebookAPI.importBackup();
       if (!imported) return;
-      if (!isValidAppData(imported)) {
+      const normalized = migrateAppData(imported);
+      if (!normalized) {
         onToast("Bu dosya geçerli bir Notebook-PC yedeği değil.");
         return;
       }
@@ -75,7 +76,7 @@ export default function SettingsPage({
           "Mevcut notlar yedekteki verilerle değiştirilecek. Devam edilsin mi?"
         )
       ) {
-        onDataChange(imported);
+        onDataChange(normalized);
         onToast("Yedek başarıyla geri yüklendi.");
       }
     } catch {
@@ -225,8 +226,12 @@ export default function SettingsPage({
               <span>Ses kaydı</span>
             </div>
             <div>
-              <strong>{data.reminders.length}</strong>
-              <span>Alarm</span>
+              <strong>{data.plannerItems.length}</strong>
+              <span>Takvim kaydı</span>
+            </div>
+            <div>
+              <strong>{data.goals.length}</strong>
+              <span>Hedef</span>
             </div>
           </div>
         </section>
