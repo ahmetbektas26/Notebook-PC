@@ -12,6 +12,7 @@ düzenlemek için hazırlanmış çevrimdışı bir masaüstü uygulamasıdır.
 - İlerleme yüzdesi ve bitiş tarihi bulunan kişisel hedefler
 - 25 dakikalık yerleşik odak sayacı
 - Okuldan bağımsız Markdown destekli genel not defteri
+- Genel ve okul notlarına çoklu PDF ekleme, sürükle-bırak, açma ve silme
 - Etiketleme, arama ve favorilere alma
 - Mikrofonla sesli not kaydetme ve oynatma
 - Gün/saat seçilebilen tek seferlik, günlük veya haftalık masaüstü alarmları
@@ -27,7 +28,7 @@ düzenlemek için hazırlanmış çevrimdışı bir masaüstü uygulamasıdır.
 
 GitHub'daki **Actions → Windows kurulum dosyası → Run workflow** yolunu izleyin.
 İşlem tamamlandığında çalışmanın altındaki `Notebook-PC-Windows` dosyasını
-indirin, ZIP'i açın ve `Notebook-PC-Setup-1.1.0.exe` dosyasını çalıştırın.
+indirin, ZIP'i açın ve `Notebook-PC-Setup-1.2.0.exe` dosyasını çalıştırın.
 
 Yerelde kurulum dosyası üretmek için:
 
@@ -58,8 +59,8 @@ npm run build
 ## Veriler nerede tutulur?
 
 Electron uygulaması verileri işletim sisteminin standart uygulama verisi
-klasöründeki `notebook-data.json` dosyasında, ses kayıtlarını ise aynı klasörün
-altındaki `recordings/` klasöründe saklar. Tam konumu uygulamanın
+klasöründeki `notebook-data.json` dosyasında, ses kayıtlarını `recordings/` ve
+PDF eklerini `attachments/` klasöründe saklar. Tam konumu uygulamanın
 **Ayarlar → Yerel veri alanı** bölümünde görebilirsiniz.
 
 ## Not sistemi

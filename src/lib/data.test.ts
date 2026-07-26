@@ -4,13 +4,40 @@ import { createInitialData, migrateAppData } from "./data";
 describe("uygulama verisi", () => {
   it("yeni kullanıcıyı tamamen boş başlatır", () => {
     const data = createInitialData();
-    expect(data.version).toBe(2);
+    expect(data.version).toBe(3);
     expect(data.courses).toEqual([]);
     expect(data.notes).toEqual([]);
     expect(data.plannerItems).toEqual([]);
     expect(data.goals).toEqual([]);
     expect(data.settings.currentCredits).toBe(0);
     expect(data.settings.currentGpa).toBe(0);
+  });
+
+  it("2. sürüm notlarına boş PDF ek alanı ekler", () => {
+    const migrated = migrateAppData({
+      version: 2,
+      courses: [],
+      notes: [
+        {
+          id: "note",
+          courseId: null,
+          topic: "Fikir",
+          title: "Not",
+          content: "",
+          tags: [],
+          favorite: false,
+          createdAt: "2026-01-01",
+          updatedAt: "2026-01-01",
+          audio: []
+        }
+      ],
+      plannerItems: [],
+      goals: [],
+      grades: [],
+      settings: { theme: "light", currentCredits: 0, currentGpa: 0 }
+    });
+    expect(migrated?.version).toBe(3);
+    expect(migrated?.notes[0].attachments).toEqual([]);
   });
 
   it("eski demo verisini gerçek kullanıcı verisi gibi taşımaz", () => {

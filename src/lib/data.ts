@@ -2,6 +2,7 @@ import type {
   AppData,
   GradeEntry,
   Note,
+  PdfAttachment,
   PlannerItem,
   RepeatMode,
   Theme
@@ -22,7 +23,7 @@ export function uid() {
 
 export function createInitialData(): AppData {
   return {
-    version: 2,
+    version: 3,
     courses: [],
     notes: [],
     plannerItems: [],
@@ -40,7 +41,7 @@ export function isValidAppData(data: unknown): data is AppData {
   if (!data || typeof data !== "object") return false;
   const candidate = data as Partial<AppData>;
   return (
-    candidate.version === 2 &&
+    candidate.version === 3 &&
     Array.isArray(candidate.courses) &&
     Array.isArray(candidate.notes) &&
     Array.isArray(candidate.plannerItems) &&
@@ -59,10 +60,14 @@ interface LegacyReminder {
   createdAt: string;
 }
 
+type LegacyNote = Omit<Note, "attachments"> & {
+  attachments?: PdfAttachment[];
+};
+
 interface LegacyData {
   version: 1;
   courses?: AppData["courses"];
-  notes?: Note[];
+  notes?: LegacyNote[];
   reminders?: LegacyReminder[];
   grades?: GradeEntry[];
   settings?: {
@@ -70,6 +75,16 @@ interface LegacyData {
     currentCredits?: number;
     currentGpa?: number;
   };
+}
+
+interface VersionTwoData {
+  version: 2;
+  courses?: AppData["courses"];
+  notes?: LegacyNote[];
+  plannerItems?: AppData["plannerItems"];
+  goals?: AppData["goals"];
+  grades?: AppData["grades"];
+  settings?: AppData["settings"];
 }
 
 export function localDateKey(date: Date) {
@@ -82,6 +97,32 @@ export function localDateKey(date: Date) {
 export function migrateAppData(data: unknown): AppData | null {
   if (isValidAppData(data)) return data;
   if (!data || typeof data !== "object") return null;
+  const versionTwo = data as VersionTwoData;
+  if (versionTwo.version === 2) {
+    return {
+      version: 3,
+      courses: Array.isArray(versionTwo.courses) ? versionTwo.courses : [],
+      notes: Array.isArray(versionTwo.notes)
+        ? versionTwo.notes.map((note) => ({
+            ...note,
+            courseId: note.courseId ?? null,
+            attachments: Array.isArray(note.attachments)
+              ? note.attachments
+              : []
+          }))
+        : [],
+      plannerItems: Array.isArray(versionTwo.plannerItems)
+        ? versionTwo.plannerItems
+        : [],
+      goals: Array.isArray(versionTwo.goals) ? versionTwo.goals : [],
+      grades: Array.isArray(versionTwo.grades) ? versionTwo.grades : [],
+      settings: versionTwo.settings ?? {
+        theme: "light",
+        currentCredits: 0,
+        currentGpa: 0
+      }
+    };
+  }
   const legacy = data as LegacyData;
   if (legacy.version !== 1) return null;
 
@@ -143,11 +184,12 @@ export function migrateAppData(data: unknown): AppData | null {
     legacy.settings?.currentGpa === 2.43;
 
   return {
-    version: 2,
+    version: 3,
     courses: cleanedCourses,
     notes: notesWithoutDemo.map((note) => ({
       ...note,
-      courseId: note.courseId ?? null
+      courseId: note.courseId ?? null,
+      attachments: Array.isArray(note.attachments) ? note.attachments : []
     })),
     plannerItems,
     goals: [],

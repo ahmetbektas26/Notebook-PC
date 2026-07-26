@@ -7,6 +7,7 @@ const {
   nativeImage,
   Notification,
   session,
+  shell,
   Tray
 } = require("electron");
 const fs = require("node:fs/promises");
@@ -39,8 +40,13 @@ function recordingsDir() {
   return path.join(app.getPath("userData"), "recordings");
 }
 
+function attachmentsDir() {
+  return path.join(app.getPath("userData"), "attachments");
+}
+
 async function ensureStorage() {
   await fs.mkdir(recordingsDir(), { recursive: true });
+  await fs.mkdir(attachmentsDir(), { recursive: true });
 }
 
 async function atomicWrite(filePath, text) {
@@ -243,6 +249,37 @@ ipcMain.handle("audio:read", async (_event, fileName) => {
 ipcMain.handle("audio:delete", async (_event, fileName) => {
   const safeName = path.basename(fileName);
   await fs.rm(path.join(recordingsDir(), safeName), { force: true });
+  return true;
+});
+
+ipcMain.handle(
+  "attachment:save",
+  async (_event, arrayBuffer, originalName, mimeType) => {
+    await ensureStorage();
+    const isPdf =
+      mimeType === "application/pdf" ||
+      path.extname(String(originalName)).toLowerCase() === ".pdf";
+    if (!isPdf) throw new Error("Yalnızca PDF dosyaları destekleniyor.");
+    const bytes = Buffer.from(arrayBuffer);
+    if (bytes.length > 50 * 1024 * 1024) {
+      throw new Error("PDF dosyası 50 MB sınırını aşıyor.");
+    }
+    const fileName = `${Date.now()}-${crypto.randomUUID()}.pdf`;
+    await fs.writeFile(path.join(attachmentsDir(), fileName), bytes);
+    return fileName;
+  }
+);
+
+ipcMain.handle("attachment:open", async (_event, fileName) => {
+  const safeName = path.basename(fileName);
+  const error = await shell.openPath(path.join(attachmentsDir(), safeName));
+  if (error) throw new Error(error);
+  return true;
+});
+
+ipcMain.handle("attachment:delete", async (_event, fileName) => {
+  const safeName = path.basename(fileName);
+  await fs.rm(path.join(attachmentsDir(), safeName), { force: true });
   return true;
 });
 

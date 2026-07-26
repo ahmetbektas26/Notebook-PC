@@ -7,6 +7,12 @@ contextBridge.exposeInMainWorld("notebookAPI", {
     ipcRenderer.invoke("audio:save", bytes, mimeType),
   readAudio: (fileName) => ipcRenderer.invoke("audio:read", fileName),
   deleteAudio: (fileName) => ipcRenderer.invoke("audio:delete", fileName),
+  saveAttachment: (bytes, originalName, mimeType) =>
+    ipcRenderer.invoke("attachment:save", bytes, originalName, mimeType),
+  openAttachment: (fileName) =>
+    ipcRenderer.invoke("attachment:open", fileName),
+  deleteAttachment: (fileName) =>
+    ipcRenderer.invoke("attachment:delete", fileName),
   syncReminders: (reminders) =>
     ipcRenderer.invoke("reminders:sync", reminders),
   exportBackup: (data) => ipcRenderer.invoke("backup:export", data),

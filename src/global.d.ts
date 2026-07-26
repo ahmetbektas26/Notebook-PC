@@ -8,6 +8,13 @@ declare global {
       saveAudio: (bytes: ArrayBuffer, mimeType: string) => Promise<string>;
       readAudio: (fileName: string) => Promise<string>;
       deleteAudio: (fileName: string) => Promise<boolean>;
+      saveAttachment: (
+        bytes: ArrayBuffer,
+        originalName: string,
+        mimeType: string
+      ) => Promise<string>;
+      openAttachment: (fileName: string) => Promise<boolean>;
+      deleteAttachment: (fileName: string) => Promise<boolean>;
       syncReminders: (reminders: ReminderForSystem[]) => Promise<boolean>;
       exportBackup: (data: AppData) => Promise<string | null>;
       importBackup: () => Promise<AppData | null>;

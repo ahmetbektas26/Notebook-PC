@@ -30,6 +30,14 @@ export interface AudioNote {
   createdAt: string;
 }
 
+export interface PdfAttachment {
+  id: string;
+  fileName: string;
+  originalName: string;
+  size: number;
+  createdAt: string;
+}
+
 export interface Note {
   id: string;
   courseId: string | null;
@@ -41,6 +49,7 @@ export interface Note {
   createdAt: string;
   updatedAt: string;
   audio: AudioNote[];
+  attachments: PdfAttachment[];
 }
 
 export interface PlannerItem {
@@ -91,7 +100,7 @@ export interface AppSettings {
 }
 
 export interface AppData {
-  version: 2;
+  version: 3;
   courses: Course[];
   notes: Note[];
   plannerItems: PlannerItem[];

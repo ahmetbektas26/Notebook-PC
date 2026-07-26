@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { AppData, Note } from "../types";
 import { uid } from "../lib/data";
 import Icon from "./Icon";
+import PdfAttachments from "./PdfAttachments";
 import Recorder from "./Recorder";
 
 interface NotesPageProps {
@@ -139,7 +140,8 @@ export default function NotesPage({
       favorite: false,
       createdAt: now,
       updatedAt: now,
-      audio: []
+      audio: [],
+      attachments: []
     };
     onDataChange({ ...data, notes: [note, ...data.notes] });
     setSelectedId(note.id);
@@ -162,11 +164,14 @@ export default function NotesPage({
     if (!selected || !window.confirm(`“${selected.title}” notu silinsin mi?`))
       return;
     if (window.notebookAPI) {
-      await Promise.all(
-        selected.audio.map((audio) =>
+      await Promise.all([
+        ...selected.audio.map((audio) =>
           window.notebookAPI!.deleteAudio(audio.fileName)
+        ),
+        ...selected.attachments.map((attachment) =>
+          window.notebookAPI!.deleteAttachment(attachment.fileName)
         )
-      );
+      ]);
     }
     onDataChange({
       ...data,
@@ -388,6 +393,11 @@ export default function NotesPage({
                   spellCheck
                 />
               )}
+
+              <PdfAttachments
+                attachments={selected.attachments}
+                onChange={(attachments) => updateNote({ attachments })}
+              />
 
               <Recorder
                 recordings={selected.audio}

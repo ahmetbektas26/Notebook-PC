@@ -928,6 +928,125 @@ p {
   border-top: 1px solid var(--line);
 }
 
+.pdf-panel {
+  margin-top: 28px;
+  padding-top: 23px;
+  border-top: 1px solid var(--line);
+}
+
+.pdf-dropzone {
+  display: flex;
+  width: 100%;
+  min-height: 76px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1px dashed var(--line);
+  border-radius: 9px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--panel) 72%, transparent);
+  transition:
+    border-color 150ms ease,
+    background 150ms ease,
+    transform 150ms ease;
+}
+
+.pdf-dropzone:hover,
+.pdf-dropzone.dragging {
+  transform: translateY(-1px);
+  border-color: var(--accent);
+  color: var(--accent-deep);
+  background: rgba(226, 170, 73, 0.07);
+}
+
+.pdf-dropzone > span {
+  font-size: 9.5px;
+}
+
+.pdf-dropzone > small {
+  color: var(--muted-2);
+  font-size: 7.5px;
+}
+
+.pdf-error {
+  margin: 9px 0 0;
+}
+
+.pdf-list {
+  display: grid;
+  gap: 7px;
+  margin-top: 9px;
+}
+
+.pdf-list article {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto 28px;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 8px 10px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.pdf-file-icon {
+  display: grid;
+  width: 37px;
+  height: 37px;
+  border-radius: 7px;
+  color: #fff;
+  background: #c75b58;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.4px;
+  place-items: center;
+}
+
+.pdf-name {
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.pdf-name strong,
+.pdf-name span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pdf-name strong {
+  margin-bottom: 4px;
+  font-size: 10px;
+}
+
+.pdf-name span {
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.pdf-open {
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+  background: var(--panel-strong);
+  font-size: 8.5px;
+  font-weight: 700;
+}
+
+.pdf-open:hover {
+  border-color: var(--accent);
+  color: var(--accent-deep);
+}
+
 .section-title-row {
   display: flex;
   align-items: center;

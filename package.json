@@ -1,6 +1,6 @@
 {
   "name": "notebook-pc",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Ders, konu, sesli not, hatırlatıcı ve Doğuş Üniversitesi not ortalaması için çevrimdışı masaüstü uygulaması.",
   "main": "electron/main.cjs",
   "author": "Ahmet Bektaş",

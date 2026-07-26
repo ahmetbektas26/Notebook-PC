@@ -226,6 +226,15 @@ export default function SettingsPage({
               <span>Ses kaydı</span>
             </div>
             <div>
+              <strong>
+                {data.notes.reduce(
+                  (sum, note) => sum + note.attachments.length,
+                  0
+                )}
+              </strong>
+              <span>PDF eki</span>
+            </div>
+            <div>
               <strong>{data.plannerItems.length}</strong>
               <span>Takvim kaydı</span>
             </div>

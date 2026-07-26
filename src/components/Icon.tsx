@@ -26,7 +26,8 @@ export type IconName =
   | "school"
   | "target"
   | "home"
-  | "rotate";
+  | "rotate"
+  | "file";
 
 const paths: Record<IconName, React.ReactNode> = {
   book: (
@@ -143,6 +144,12 @@ const paths: Record<IconName, React.ReactNode> = {
     <>
       <path d="M20 6v5h-5" />
       <path d="M19 11a8 8 0 1 0 1 5" />
+    </>
+  ),
+  file: (
+    <>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+      <path d="M14 2v6h6M8 15h8M8 18h6" />
     </>
   )
 };
