@@ -17,6 +17,7 @@ let mainWindow;
 let tray;
 let isQuitting = false;
 const reminderTimers = new Map();
+const startHidden = process.argv.includes("--hidden");
 
 const traySvg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64">
@@ -73,7 +74,9 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, "..", "dist", "index.html"));
   }
 
-  mainWindow.once("ready-to-show", () => mainWindow.show());
+  mainWindow.once("ready-to-show", () => {
+    if (!startHidden) mainWindow.show();
+  });
   mainWindow.on("close", (event) => {
     if (!isQuitting) {
       event.preventDefault();
@@ -208,7 +211,8 @@ ipcMain.handle("data:path", () => app.getPath("userData"));
 ipcMain.handle("app:launch-at-login", (_event, enabled) => {
   app.setLoginItemSettings({
     openAtLogin: Boolean(enabled),
-    openAsHidden: Boolean(enabled)
+    path: app.getPath("exe"),
+    args: enabled ? ["--hidden"] : []
   });
   return app.getLoginItemSettings().openAtLogin;
 });
