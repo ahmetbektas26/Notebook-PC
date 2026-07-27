@@ -13,6 +13,13 @@ const {
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const crypto = require("node:crypto");
+const {
+  decryptBuffer,
+  deriveKey,
+  encryptBuffer,
+  isEncryptedBuffer
+} = require("./security.cjs");
+const { nextOccurrence } = require("./reminders.cjs");
 
 let mainWindow;
 let tray;
@@ -20,7 +27,6 @@ let isQuitting = false;
 let encryptionKey = null;
 const reminderTimers = new Map();
 const startHidden = process.argv.includes("--hidden");
-const ENCRYPTION_MAGIC = Buffer.from("NBPCENC1");
 
 const traySvg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64">
@@ -65,55 +71,41 @@ async function ensureStorage() {
 }
 
 async function atomicWrite(filePath, text) {
-  const temporary = `${filePath}.tmp`;
-  await fs.writeFile(temporary, text, "utf8");
-  await fs.rename(temporary, filePath);
+  await atomicWriteBuffer(filePath, Buffer.from(text, "utf8"));
 }
 
 async function atomicWriteBuffer(filePath, bytes) {
-  const temporary = `${filePath}.tmp`;
-  await fs.writeFile(temporary, bytes);
-  await fs.rename(temporary, filePath);
+  const temporary = `${filePath}.${process.pid}.${crypto.randomUUID()}.tmp`;
+  try {
+    await fs.writeFile(temporary, bytes);
+    try {
+      await fs.rename(temporary, filePath);
+    } catch (error) {
+      if (!["EEXIST", "EPERM"].includes(error.code)) throw error;
+      await fs.rm(filePath, { force: true });
+      await fs.rename(temporary, filePath);
+    }
+  } finally {
+    await fs.rm(temporary, { force: true }).catch(() => undefined);
+  }
 }
 
 async function readSecurityConfig() {
   try {
-    return JSON.parse(await fs.readFile(securityFile(), "utf8"));
+    const config = JSON.parse(await fs.readFile(securityFile(), "utf8"));
+    if (
+      !config ||
+      config.version !== 1 ||
+      typeof config.salt !== "string" ||
+      !config.salt
+    ) {
+      throw new Error("Güvenlik ayarları geçersiz.");
+    }
+    return config;
   } catch (error) {
     if (error.code === "ENOENT") return null;
     throw error;
   }
-}
-
-function deriveKey(passcode, salt) {
-  return crypto.scryptSync(String(passcode), salt, 32);
-}
-
-function encryptBuffer(bytes, key) {
-  const iv = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
-  const encrypted = Buffer.concat([cipher.update(bytes), cipher.final()]);
-  const tag = cipher.getAuthTag();
-  return Buffer.concat([ENCRYPTION_MAGIC, iv, tag, encrypted]);
-}
-
-function decryptBuffer(bytes, key) {
-  if (!bytes.subarray(0, ENCRYPTION_MAGIC.length).equals(ENCRYPTION_MAGIC)) {
-    return bytes;
-  }
-  const ivStart = ENCRYPTION_MAGIC.length;
-  const tagStart = ivStart + 12;
-  const contentStart = tagStart + 16;
-  const decipher = crypto.createDecipheriv(
-    "aes-256-gcm",
-    key,
-    bytes.subarray(ivStart, tagStart)
-  );
-  decipher.setAuthTag(bytes.subarray(tagStart, contentStart));
-  return Buffer.concat([
-    decipher.update(bytes.subarray(contentStart)),
-    decipher.final()
-  ]);
 }
 
 async function readStoredData(key = encryptionKey) {
@@ -151,9 +143,7 @@ async function transformDirectory(directory, key, encrypt) {
   for (const name of names) {
     const filePath = path.join(directory, path.basename(name));
     const bytes = await fs.readFile(filePath);
-    const isEncrypted = bytes
-      .subarray(0, ENCRYPTION_MAGIC.length)
-      .equals(ENCRYPTION_MAGIC);
+    const isEncrypted = isEncryptedBuffer(bytes);
     if (encrypt && !isEncrypted) {
       await atomicWriteBuffer(filePath, encryptBuffer(bytes, key));
     }
@@ -255,19 +245,6 @@ function createTray() {
   });
 }
 
-function nextOccurrence(reminder) {
-  const initial = new Date(reminder.dueAt);
-  if (Number.isNaN(initial.getTime())) return null;
-  const now = Date.now();
-  if (initial.getTime() > now) return initial;
-  if (reminder.repeat === "none") return null;
-
-  const next = new Date(initial);
-  const step = reminder.repeat === "daily" ? 1 : 7;
-  while (next.getTime() <= now) next.setDate(next.getDate() + step);
-  return next;
-}
-
 function scheduleReminder(reminder) {
   const due = nextOccurrence(reminder);
   if (!due || reminder.completed) return;
@@ -364,6 +341,9 @@ ipcMain.handle("security:unlock", async (_event, passcode) => {
   const config = await readSecurityConfig();
   if (!config) return { data: await readStoredData(), status: null };
   try {
+    if (!String(passcode).length || String(passcode).length > 128) {
+      throw new Error("Geçersiz şifre.");
+    }
     const key = deriveKey(passcode, Buffer.from(config.salt, "base64"));
     const data = await readStoredData(key);
     encryptionKey = key;
@@ -383,8 +363,8 @@ ipcMain.handle("security:unlock", async (_event, passcode) => {
 ipcMain.handle(
   "security:enable",
   async (_event, passcode, data, autoLockMinutes) => {
-    if (String(passcode).length < 6) {
-      throw new Error("Şifre en az 6 karakter olmalı.");
+    if (String(passcode).length < 6 || String(passcode).length > 128) {
+      throw new Error("Şifre 6–128 karakter arasında olmalı.");
     }
     const salt = crypto.randomBytes(16);
     const key = deriveKey(passcode, salt);
@@ -416,6 +396,9 @@ ipcMain.handle("security:disable", async (_event, passcode, data) => {
     return { enabled: false, locked: false, autoLockMinutes: 0 };
   }
   try {
+    if (!String(passcode).length || String(passcode).length > 128) {
+      throw new Error("Geçersiz şifre.");
+    }
     const key = deriveKey(passcode, Buffer.from(config.salt, "base64"));
     await readStoredData(key);
     await transformDirectory(recordingsDir(), key, false);

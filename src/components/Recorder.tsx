@@ -36,9 +36,11 @@ export default function Recorder({ recordings, onChange }: RecorderProps) {
   useEffect(
     () => () => {
       streamRef.current?.getTracks().forEach((track) => track.stop());
-      Object.values(audioUrls)
-        .filter((url) => url.startsWith("blob:"))
-        .forEach(URL.revokeObjectURL);
+      if (typeof URL.revokeObjectURL === "function") {
+        Object.values(audioUrls)
+          .filter((url) => url.startsWith("blob:"))
+          .forEach((url) => URL.revokeObjectURL(url));
+      }
     },
     [audioUrls]
   );

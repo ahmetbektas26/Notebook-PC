@@ -103,6 +103,8 @@ export default function SecuritySettings({
                 value={passcode}
                 onChange={(event) => setPasscode(event.target.value)}
                 placeholder="En az 6 karakter"
+                autoComplete="new-password"
+                maxLength={128}
               />
             </label>
             <label>
@@ -112,6 +114,8 @@ export default function SecuritySettings({
                 value={confirm}
                 onChange={(event) => setConfirm(event.target.value)}
                 placeholder="Aynı şifre"
+                autoComplete="new-password"
+                maxLength={128}
               />
             </label>
           </div>
@@ -155,6 +159,8 @@ export default function SecuritySettings({
               value={disablePasscode}
               onChange={(event) => setDisablePasscode(event.target.value)}
               placeholder="Kapatmak için mevcut şifre"
+              autoComplete="current-password"
+              maxLength={128}
             />
             <button type="submit" disabled={busy}>
               Şifrelemeyi kapat

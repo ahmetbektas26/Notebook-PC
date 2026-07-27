@@ -38,33 +38,50 @@ export default function App() {
   const [page, setPage] = useState<Page>("today");
   const [toast, setToast] = useState("");
   const [focus, setFocus] = useState<SearchFocus>(emptyFocus);
+  const [startupError, setStartupError] = useState("");
   const [securityStatus, setSecurityStatus] =
     useState<SecurityStatus | null>(null);
 
   useEffect(() => {
     (async () => {
-      const status = window.notebookAPI
-        ? await window.notebookAPI.getSecurityStatus()
-        : { enabled: false, locked: false, autoLockMinutes: 0 };
-      setSecurityStatus(status);
-      if (!status.locked) setData(await loadAppData());
+      try {
+        const status = window.notebookAPI
+          ? await window.notebookAPI.getSecurityStatus()
+          : { enabled: false, locked: false, autoLockMinutes: 0 };
+        setSecurityStatus(status);
+        if (!status.locked) setData(await loadAppData());
+      } catch {
+        setStartupError(
+          "Yerel veri alanı açılamadı. Dosyalar bozuk veya erişim izni engellenmiş olabilir."
+        );
+      }
     })();
   }, []);
 
   useEffect(() => {
     if (!data) return;
     document.documentElement.dataset.theme = data.settings.theme;
-    const timer = window.setTimeout(() => persistAppData(data), 350);
+    const timer = window.setTimeout(() => {
+      void persistAppData(data).catch(() =>
+        setToast("Değişiklikler diske kaydedilemedi.")
+      );
+    }, 350);
     const reminders = data.plannerItems
       .filter((item) => item.reminder && item.time && !item.completed)
-      .map((item) => ({
-        id: item.id,
-        title: item.title,
-        dueAt: new Date(`${item.date}T${item.time}:00`).toISOString(),
-        repeat: item.repeat,
-        completed: item.completed
-      }));
-    window.notebookAPI?.syncReminders(reminders);
+      .flatMap((item) => {
+        const due = new Date(`${item.date}T${item.time}:00`);
+        if (Number.isNaN(due.getTime())) return [];
+        return [
+          {
+            id: item.id,
+            title: item.title,
+            dueAt: due.toISOString(),
+            repeat: item.repeat,
+            completed: item.completed
+          }
+        ];
+      });
+    void window.notebookAPI?.syncReminders(reminders).catch(() => undefined);
     return () => window.clearTimeout(timer);
   }, [data]);
 
@@ -144,6 +161,22 @@ export default function App() {
     setData(null);
     setSecurityStatus((current) =>
       current ? { ...current, locked: true } : current
+    );
+  }
+
+  if (startupError) {
+    return (
+      <div className="loading-screen loading-error">
+        <Icon name="file" size={30} />
+        <strong>Notebook-PC başlatılamadı</strong>
+        <p>{startupError}</p>
+        <button
+          className="primary-button"
+          onClick={() => window.location.reload()}
+        >
+          Yeniden dene
+        </button>
+      </div>
     );
   }
 

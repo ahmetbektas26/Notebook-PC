@@ -29,11 +29,8 @@ export const GRADE_RANGES: Array<{
 ];
 
 export function letterFromScore(score: number): GradeLetter {
-  if (!Number.isFinite(score)) return "F";
-  return (
-    GRADE_RANGES.find(({ min, max }) => score >= min && score <= max)?.letter ??
-    "F"
-  );
+  if (!Number.isFinite(score) || score < 0 || score > 100) return "F";
+  return GRADE_RANGES.find(({ min }) => score >= min)?.letter ?? "F";
 }
 
 export function calculateTermGpa(entries: GradeEntry[]) {
@@ -58,8 +55,11 @@ export function calculateProjectedGpa(
   entries: GradeEntry[]
 ) {
   const term = calculateTermGpa(entries);
-  const safeCredits = Math.max(0, currentCredits || 0);
-  const safeGpa = Math.min(4, Math.max(0, currentGpa || 0));
+  const safeCredits =
+    Number.isFinite(currentCredits) && currentCredits > 0 ? currentCredits : 0;
+  const safeGpa = Number.isFinite(currentGpa)
+    ? Math.min(4, Math.max(0, currentGpa))
+    : 0;
   const totalCredits = safeCredits + term.totalEcts;
   if (!totalCredits) return 0;
   return (safeCredits * safeGpa + term.totalPoints) / totalCredits;

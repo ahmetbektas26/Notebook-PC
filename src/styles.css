@@ -3957,6 +3957,24 @@ p {
   place-items: center;
 }
 
+.loading-screen.loading-error {
+  gap: 10px;
+  padding: 30px;
+  color: #f4f1e8;
+  background: var(--sidebar);
+  text-align: center;
+}
+
+.loading-screen.loading-error > svg {
+  color: var(--accent);
+}
+
+.loading-screen.loading-error p {
+  max-width: 460px;
+  color: #aeb1c2;
+  line-height: 1.6;
+}
+
 .lock-card {
   display: grid;
   width: min(430px, 92vw);
@@ -4005,15 +4023,59 @@ p {
   gap: 9px;
 }
 
-.lock-card input {
+.lock-input-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.lock-card .lock-input-wrap input {
   width: 100%;
   height: 46px;
-  padding: 0 13px;
+  padding: 0 72px 0 13px;
   border: 1px solid #454a62;
   border-radius: 8px;
   outline: 0;
   color: #fff;
   background: #1b1e31;
+  caret-color: var(--accent);
+  pointer-events: auto;
+  user-select: text;
+}
+
+.lock-card .lock-input-wrap input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(226, 170, 73, 0.14);
+}
+
+.password-visibility {
+  position: absolute;
+  top: 50%;
+  right: 7px;
+  min-width: 56px;
+  height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  color: #d3d5df;
+  background: #292d43;
+  font-size: 8px;
+  font-weight: 800;
+  transform: translateY(-50%);
+}
+
+.password-visibility:hover {
+  color: #fff;
+  background: #343950;
+}
+
+.lock-input-status {
+  min-height: 14px;
+  text-align: left;
+}
+
+.lock-input-status span {
+  color: #8f93a7;
+  font-size: 8px;
 }
 
 .lock-card > small {

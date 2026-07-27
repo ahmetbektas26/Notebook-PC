@@ -33,7 +33,7 @@ düzenlemek için hazırlanmış çevrimdışı bir masaüstü uygulamasıdır.
 
 GitHub'daki **Actions → Windows kurulum dosyası → Run workflow** yolunu izleyin.
 İşlem tamamlandığında çalışmanın altındaki `Notebook-PC-Windows` dosyasını
-indirin, ZIP'i açın ve `Notebook-PC-Setup-1.3.0.exe` dosyasını çalıştırın.
+indirin, ZIP'i açın ve `Notebook-PC-Setup-1.3.1.exe` dosyasını çalıştırın.
 
 Yerelde kurulum dosyası üretmek için:
 
@@ -60,6 +60,11 @@ npm run typecheck
 npm test
 npm run build
 ```
+
+Test paketi; ana sayfalar arasında gezinme, şifre yazma/kasa açma, takvim
+alarmları, PDF ekleri, ses kayıtları, veri aktarımı, not ortalaması, veri
+geçişleri, arama ve haftalık hesapları kapsar. Ayrıntılar için
+[`TESTING.md`](TESTING.md) dosyasına bakabilirsiniz.
 
 ## Veriler nerede tutulur?
 
