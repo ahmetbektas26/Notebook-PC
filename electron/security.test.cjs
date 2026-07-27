@@ -6,7 +6,8 @@ const {
   decryptBuffer,
   deriveKey,
   encryptBuffer,
-  isEncryptedBuffer
+  isEncryptedBuffer,
+  normalizeAutoLockMinutes
 } = require("./security.cjs");
 
 test("AES-256-GCM metin ve ikili dosyaları kayıpsız şifreler", () => {
@@ -50,4 +51,11 @@ test("eksik şifreli dosya sessizce kabul edilmez", () => {
     () => decryptBuffer(truncated, crypto.randomBytes(32)),
     /eksik veya bozuk/
   );
+});
+
+test("otomatik kilit süresi sonlu ve güvenli aralıkta tutulur", () => {
+  assert.equal(normalizeAutoLockMinutes(-5), 0);
+  assert.equal(normalizeAutoLockMinutes("15"), 15);
+  assert.equal(normalizeAutoLockMinutes(99999), 1440);
+  assert.equal(normalizeAutoLockMinutes(Number.NaN), 0);
 });

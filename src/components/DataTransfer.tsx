@@ -25,16 +25,20 @@ export default function DataTransfer({
   onToast
 }: DataTransferProps) {
   async function exportJson() {
-    if (window.notebookAPI) {
-      const path = await window.notebookAPI.exportBackup(data);
-      if (path) onToast("JSON yedeği oluşturuldu.");
-      return;
+    try {
+      if (window.notebookAPI) {
+        const path = await window.notebookAPI.exportBackup(data);
+        if (path) onToast("JSON yedeği oluşturuldu.");
+        return;
+      }
+      download(
+        JSON.stringify(data, null, 2),
+        "application/json",
+        `Notebook-PC-yedek-${stamp()}.json`
+      );
+    } catch {
+      onToast("JSON yedeği oluşturulamadı.");
     }
-    download(
-      JSON.stringify(data, null, 2),
-      "application/json",
-      `Notebook-PC-yedek-${stamp()}.json`
-    );
   }
 
   function download(content: string, type: string, name: string) {
@@ -47,23 +51,31 @@ export default function DataTransfer({
   }
 
   async function exportText(kind: "md" | "csv") {
-    const content = kind === "md" ? dataToMarkdown(data) : dataToCsv(data);
-    const name = `Notebook-PC-${stamp()}.${kind}`;
-    if (window.notebookAPI) {
-      const path = await window.notebookAPI.exportText(content, kind, name);
-      if (path)
-        onToast(
-          kind === "md"
-            ? "Markdown dışa aktarımı tamamlandı."
-            : "CSV dışa aktarımı tamamlandı."
-        );
-      return;
+    try {
+      const content = kind === "md" ? dataToMarkdown(data) : dataToCsv(data);
+      const name = `Notebook-PC-${stamp()}.${kind}`;
+      if (window.notebookAPI) {
+        const path = await window.notebookAPI.exportText(content, kind, name);
+        if (path)
+          onToast(
+            kind === "md"
+              ? "Markdown dışa aktarımı tamamlandı."
+              : "CSV dışa aktarımı tamamlandı."
+          );
+        return;
+      }
+      download(
+        content,
+        kind === "md" ? "text/markdown" : "text/csv",
+        name
+      );
+    } catch {
+      onToast(
+        kind === "md"
+          ? "Markdown dışa aktarımı tamamlanamadı."
+          : "CSV dışa aktarımı tamamlanamadı."
+      );
     }
-    download(
-      content,
-      kind === "md" ? "text/markdown" : "text/csv",
-      name
-    );
   }
 
   async function exportPdf() {
@@ -71,11 +83,15 @@ export default function DataTransfer({
       onToast("PDF dışa aktarma masaüstü sürümünde kullanılabilir.");
       return;
     }
-    const path = await window.notebookAPI.exportPdf(
-      dataToPrintableHtml(data),
-      `Notebook-PC-${stamp()}.pdf`
-    );
-    if (path) onToast("PDF raporu oluşturuldu.");
+    try {
+      const path = await window.notebookAPI.exportPdf(
+        dataToPrintableHtml(data),
+        `Notebook-PC-${stamp()}.pdf`
+      );
+      if (path) onToast("PDF raporu oluşturuldu.");
+    } catch {
+      onToast("PDF raporu oluşturulamadı.");
+    }
   }
 
   async function importFiles() {

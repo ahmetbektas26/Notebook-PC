@@ -136,8 +136,15 @@ export default function NotesPage({
   }, [data.notes, focusNoteId]);
 
   function createNote(template?: NoteTemplate) {
+    const selectedCourseExists =
+      activeCourseId !== null &&
+      data.courses.some((course) => course.id === activeCourseId);
     const courseId =
-      scope === "personal" ? null : activeCourseId ?? data.courses[0]?.id ?? null;
+      scope === "personal"
+        ? null
+        : selectedCourseExists
+          ? activeCourseId
+          : data.courses[0]?.id ?? null;
     if (scope === "school" && !courseId) {
       onToast("Önce bir ders eklemelisin.");
       return;
@@ -182,8 +189,9 @@ export default function NotesPage({
   async function deleteNote() {
     if (!selected || !window.confirm(`“${selected.title}” notu silinsin mi?`))
       return;
+    let failedFileDeletes = 0;
     if (window.notebookAPI) {
-      await Promise.all([
+      const results = await Promise.allSettled([
         ...selected.audio.map((audio) =>
           window.notebookAPI!.deleteAudio(audio.fileName)
         ),
@@ -191,13 +199,20 @@ export default function NotesPage({
           window.notebookAPI!.deleteAttachment(attachment.fileName)
         )
       ]);
+      failedFileDeletes = results.filter(
+        (result) => result.status === "rejected"
+      ).length;
     }
     onDataChange({
       ...data,
       notes: data.notes.filter((note) => note.id !== selected.id)
     });
     setSelectedId(notes.find((note) => note.id !== selected.id)?.id ?? null);
-    onToast("Not silindi.");
+    onToast(
+      failedFileDeletes
+        ? `Not silindi; ${failedFileDeletes} ek dosya diskten kaldırılamadı.`
+        : "Not silindi."
+    );
   }
 
   function insertFormat(before: string, after = "") {

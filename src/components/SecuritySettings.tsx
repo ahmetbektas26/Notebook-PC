@@ -64,15 +64,20 @@ export default function SecuritySettings({
       setDisablePasscode("");
       onToast("Uygulama kilidi ve yerel şifreleme kapatıldı.");
     } catch {
-      onToast("Şifre yanlış; güvenlik kapatılamadı.");
+      onToast("Şifre yanlış veya güvenlik kapatma işlemi tamamlanamadı.");
     } finally {
       setBusy(false);
     }
   }
 
   async function changeAutoLock(minutes: number) {
-    const next = await window.notebookAPI?.setAutoLock(minutes);
-    if (next) onStatusChange(next);
+    try {
+      const next = await window.notebookAPI?.setAutoLock(minutes);
+      if (!next) throw new Error();
+      onStatusChange(next);
+    } catch {
+      onToast("Otomatik kilit süresi kaydedilemedi.");
+    }
   }
 
   return (
@@ -146,8 +151,13 @@ export default function SecuritySettings({
           <button
             className="secondary-button"
             onClick={async () => {
-              await window.notebookAPI?.lockNow();
-              onLock();
+              try {
+                const locked = await window.notebookAPI?.lockNow();
+                if (!locked) throw new Error();
+                onLock();
+              } catch {
+                onToast("Uygulama kilitlenemedi.");
+              }
             }}
           >
             <Icon name="lock" size={16} />

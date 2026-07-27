@@ -17,7 +17,8 @@ const {
   decryptBuffer,
   deriveKey,
   encryptBuffer,
-  isEncryptedBuffer
+  isEncryptedBuffer,
+  normalizeAutoLockMinutes
 } = require("./security.cjs");
 const { nextOccurrence } = require("./reminders.cjs");
 
@@ -25,6 +26,7 @@ let mainWindow;
 let tray;
 let isQuitting = false;
 let encryptionKey = null;
+let pendingDataSave = Promise.resolve();
 const reminderTimers = new Map();
 const startHidden = process.argv.includes("--hidden");
 
@@ -101,6 +103,10 @@ async function readSecurityConfig() {
     ) {
       throw new Error("Güvenlik ayarları geçersiz.");
     }
+    config.autoLockMinutes = normalizeAutoLockMinutes(
+      config.autoLockMinutes,
+      0
+    );
     return config;
   } catch (error) {
     if (error.code === "ENOENT") return null;
@@ -174,6 +180,7 @@ async function writeProtectedFile(filePath, bytes) {
 async function lockApplication() {
   const config = await readSecurityConfig();
   if (!config) return;
+  await pendingDataSave.catch(() => undefined);
   encryptionKey = null;
   await fs.rm(openedAttachmentsDir(), { recursive: true, force: true });
   await fs.mkdir(openedAttachmentsDir(), { recursive: true });
@@ -322,7 +329,11 @@ ipcMain.handle("data:load", async () => {
 
 ipcMain.handle("data:save", async (_event, data) => {
   await ensureStorage();
-  await saveStoredData(data);
+  const operation = pendingDataSave
+    .catch(() => undefined)
+    .then(() => saveStoredData(data));
+  pendingDataSave = operation;
+  await operation;
   return true;
 });
 
@@ -366,22 +377,44 @@ ipcMain.handle(
     if (String(passcode).length < 6 || String(passcode).length > 128) {
       throw new Error("Şifre 6–128 karakter arasında olmalı.");
     }
+    if (await readSecurityConfig()) {
+      throw new Error("Yerel kasa zaten etkin.");
+    }
+    await pendingDataSave.catch(() => undefined);
     const salt = crypto.randomBytes(16);
     const key = deriveKey(passcode, salt);
     const config = {
       version: 1,
       salt: salt.toString("base64"),
-      autoLockMinutes: Number(autoLockMinutes) || 0
+      autoLockMinutes: normalizeAutoLockMinutes(autoLockMinutes, 5)
     };
-    encryptionKey = key;
-    await atomicWrite(securityFile(), JSON.stringify(config, null, 2));
-    await atomicWriteBuffer(
-      encryptedStorageFile(),
-      encryptBuffer(Buffer.from(JSON.stringify(data)), key)
-    );
-    await fs.rm(storageFile(), { force: true });
-    await transformDirectory(recordingsDir(), key, true);
-    await transformDirectory(attachmentsDir(), key, true);
+    try {
+      await atomicWriteBuffer(
+        encryptedStorageFile(),
+        encryptBuffer(Buffer.from(JSON.stringify(data)), key)
+      );
+      await transformDirectory(recordingsDir(), key, true);
+      await transformDirectory(attachmentsDir(), key, true);
+      await fs.rm(storageFile(), { force: true });
+      await atomicWrite(securityFile(), JSON.stringify(config, null, 2));
+      encryptionKey = key;
+    } catch (error) {
+      await transformDirectory(recordingsDir(), key, false).catch(
+        () => undefined
+      );
+      await transformDirectory(attachmentsDir(), key, false).catch(
+        () => undefined
+      );
+      await atomicWrite(storageFile(), JSON.stringify(data, null, 2)).catch(
+        () => undefined
+      );
+      await fs.rm(encryptedStorageFile(), { force: true }).catch(
+        () => undefined
+      );
+      await fs.rm(securityFile(), { force: true }).catch(() => undefined);
+      encryptionKey = null;
+      throw error;
+    }
     return {
       enabled: true,
       locked: false,
@@ -391,6 +424,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle("security:disable", async (_event, passcode, data) => {
+  await pendingDataSave.catch(() => undefined);
   const config = await readSecurityConfig();
   if (!config) {
     return { enabled: false, locked: false, autoLockMinutes: 0 };
@@ -404,9 +438,11 @@ ipcMain.handle("security:disable", async (_event, passcode, data) => {
     await transformDirectory(recordingsDir(), key, false);
     await transformDirectory(attachmentsDir(), key, false);
     await atomicWrite(storageFile(), JSON.stringify(data, null, 2));
-    await fs.rm(encryptedStorageFile(), { force: true });
     await fs.rm(securityFile(), { force: true });
     encryptionKey = null;
+    await fs.rm(encryptedStorageFile(), { force: true }).catch(
+      () => undefined
+    );
     return { enabled: false, locked: false, autoLockMinutes: 0 };
   } catch {
     throw new Error("Şifre yanlış.");
@@ -416,7 +452,7 @@ ipcMain.handle("security:disable", async (_event, passcode, data) => {
 ipcMain.handle("security:set-auto-lock", async (_event, minutes) => {
   const config = await readSecurityConfig();
   if (!config) return null;
-  config.autoLockMinutes = Math.max(0, Number(minutes) || 0);
+  config.autoLockMinutes = normalizeAutoLockMinutes(minutes, 0);
   await atomicWrite(securityFile(), JSON.stringify(config, null, 2));
   return {
     enabled: true,

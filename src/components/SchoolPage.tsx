@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { AppData, Course } from "../types";
 import { COURSE_COLORS, uid } from "../lib/data";
+import { removeCourseAndPreserveNotes } from "../lib/courses";
 import NotesPage from "./NotesPage";
 import GradesPage from "./GradesPage";
 import Modal from "./Modal";
@@ -43,11 +44,23 @@ export default function SchoolPage({
       setActiveCourseId(note.courseId);
       return;
     }
-    if (focusCourseId) {
+    if (
+      focusCourseId &&
+      data.courses.some((course) => course.id === focusCourseId)
+    ) {
       setTab("notes");
       setActiveCourseId(focusCourseId);
     }
-  }, [data.notes, focusCourseId, focusGradeId, focusNoteId]);
+  }, [data.courses, data.notes, focusCourseId, focusGradeId, focusNoteId]);
+
+  useEffect(() => {
+    if (
+      activeCourseId &&
+      !data.courses.some((course) => course.id === activeCourseId)
+    ) {
+      setActiveCourseId(null);
+    }
+  }, [activeCourseId, data.courses]);
 
   function addCourse(event: React.FormEvent) {
     event.preventDefault();
@@ -68,6 +81,32 @@ export default function SchoolPage({
     );
     setCourseModal(false);
     onToast("Ders eklendi.");
+  }
+
+  function deleteCourse(course: Course) {
+    const attachedNotes = data.notes.filter(
+      (note) => note.courseId === course.id
+    ).length;
+    const preservationMessage = attachedNotes
+      ? ` Bu derse bağlı ${attachedNotes} not silinmeyecek, kişisel not defterine taşınacak.`
+      : "";
+    if (
+      !window.confirm(
+        `“${course.name}” dersi silinsin mi?${preservationMessage}`
+      )
+    ) {
+      return;
+    }
+
+    const result = removeCourseAndPreserveNotes(data, course.id);
+    if (!result.removed) return;
+    if (activeCourseId === course.id) setActiveCourseId(null);
+    onDataChange(result.data);
+    onToast(
+      result.movedNotes
+        ? `Ders silindi; ${result.movedNotes} not kişisel deftere taşındı.`
+        : "Ders silindi."
+    );
   }
 
   return (
@@ -106,14 +145,28 @@ export default function SchoolPage({
               Tüm dersler
             </button>
             {data.courses.map((course) => (
-              <button
+              <div
                 key={course.id}
-                className={activeCourseId === course.id ? "active" : ""}
-                onClick={() => setActiveCourseId(course.id)}
+                className={`course-pill ${
+                  activeCourseId === course.id ? "active" : ""
+                }`}
               >
-                <span style={{ backgroundColor: course.color }} />
-                {course.code || course.name}
-              </button>
+                <button
+                  className="course-pill-select"
+                  onClick={() => setActiveCourseId(course.id)}
+                >
+                  <span style={{ backgroundColor: course.color }} />
+                  {course.code || course.name}
+                </button>
+                <button
+                  className="course-pill-delete"
+                  onClick={() => deleteCourse(course)}
+                  aria-label={`${course.name} dersini sil`}
+                  title="Dersi sil"
+                >
+                  <Icon name="trash" size={13} />
+                </button>
+              </div>
             ))}
             <button
               className="add-course-pill"

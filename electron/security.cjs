@@ -5,6 +5,12 @@ const IV_LENGTH = 12;
 const TAG_LENGTH = 16;
 const KEY_LENGTH = 32;
 
+function normalizeAutoLockMinutes(value, fallback = 0) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(24 * 60, Math.max(0, Math.round(parsed)));
+}
+
 function deriveKey(passcode, salt) {
   return crypto.scryptSync(String(passcode), salt, KEY_LENGTH);
 }
@@ -55,5 +61,6 @@ module.exports = {
   decryptBuffer,
   deriveKey,
   encryptBuffer,
-  isEncryptedBuffer
+  isEncryptedBuffer,
+  normalizeAutoLockMinutes
 };

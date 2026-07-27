@@ -160,4 +160,125 @@ describe("uygulama verisi", () => {
     expect(migrated?.notes.map((note) => note.id)).toEqual(["real-note"]);
     expect(migrated?.courses).toEqual([]);
   });
+
+  it("bozuk 4. sürüm alanlarını arayüzü çökertmeden onarır", () => {
+    const migrated = migrateAppData({
+      version: 4,
+      courses: [
+        {
+          id: "same",
+          name: "Algoritmalar",
+          code: 42,
+          color: "not-a-color",
+          createdAt: "bozuk"
+        },
+        { id: "same", name: "", code: "", color: "#112233" }
+      ],
+      notes: [
+        {
+          id: "note",
+          courseId: "missing-course",
+          title: 123,
+          tags: "etiket",
+          favorite: "yes"
+        }
+      ],
+      plannerItems: [
+        {
+          id: "plan",
+          title: "",
+          date: "geçersiz",
+          time: "99:99",
+          kind: "wrong",
+          reminder: true,
+          repeat: "hourly",
+          completed: false
+        }
+      ],
+      goals: [{ id: "goal", title: "", progress: 900, category: "wrong" }],
+      grades: [{ id: "grade", course: "", ects: 500, letter: "Z" }],
+      templates: [
+        { id: "blank", name: "", tags: null },
+        { id: "blank", name: "İkinci", tags: [] }
+      ],
+      focusSessions: [{ id: "focus", minutes: -20, completedAt: "bad" }],
+      weeklyReflections: [
+        { weekStart: "bad" },
+        { weekStart: "2026-07-27", wins: "İyi" },
+        { weekStart: "2026-07-27", wins: "Tekrar" }
+      ],
+      settings: { theme: "purple", currentCredits: -4, currentGpa: 9 }
+    });
+
+    expect(migrated).not.toBeNull();
+    expect(migrated?.courses.map((course) => course.id)).toEqual([
+      "same",
+      "same-2"
+    ]);
+    expect(migrated?.notes[0]).toEqual(
+      expect.objectContaining({
+        courseId: null,
+        title: "",
+        tags: [],
+        favorite: false,
+        audio: [],
+        attachments: []
+      })
+    );
+    expect(migrated?.plannerItems[0]).toEqual(
+      expect.objectContaining({
+        title: "Adsız kayıt",
+        time: "",
+        kind: "task",
+        reminder: false,
+        repeat: "none"
+      })
+    );
+    expect(migrated?.goals[0].progress).toBe(100);
+    expect(migrated?.grades[0]).toEqual(
+      expect.objectContaining({ course: "Adsız ders", ects: 30, letter: "F" })
+    );
+    expect(migrated?.focusSessions[0].minutes).toBe(1);
+    expect(migrated?.templates.map((template) => template.id)).toEqual([
+      "blank-2",
+      "blank-3"
+    ]);
+    expect(migrated?.weeklyReflections).toHaveLength(1);
+    expect(migrated?.settings).toEqual({
+      theme: "light",
+      currentCredits: 0,
+      currentGpa: 4
+    });
+  });
+
+  it("eski sürümlerde eksik kalan ses ve ek alanlarını da normalleştirir", () => {
+    const migrated = migrateAppData({
+      version: 3,
+      courses: [],
+      notes: [
+        {
+          id: "note",
+          courseId: "orphan",
+          title: "Eksik not",
+          createdAt: "bad",
+          updatedAt: "bad"
+        }
+      ]
+    });
+
+    expect(migrated?.notes[0]).toEqual(
+      expect.objectContaining({
+        courseId: null,
+        topic: "Genel",
+        audio: [],
+        attachments: []
+      })
+    );
+    expect(migrated?.plannerItems).toEqual([]);
+    expect(migrated?.settings).toEqual({
+      theme: "light",
+      currentCredits: 0,
+      currentGpa: 0
+    });
+  });
 });

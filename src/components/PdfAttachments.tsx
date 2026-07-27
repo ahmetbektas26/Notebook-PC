@@ -22,6 +22,7 @@ export default function PdfAttachments({
   focusAttachmentId
 }: PdfAttachmentsProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const busyRef = useRef(false);
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -39,6 +40,7 @@ export default function PdfAttachments({
   }, [attachments, focusAttachmentId]);
 
   async function addFiles(files: FileList | File[]) {
+    if (busyRef.current) return;
     const selected = Array.from(files);
     if (!selected.length) return;
     if (!window.notebookAPI) {
@@ -60,6 +62,7 @@ export default function PdfAttachments({
     }
 
     try {
+      busyRef.current = true;
       setBusy(true);
       setError("");
       const created: PdfAttachment[] = [];
@@ -84,6 +87,7 @@ export default function PdfAttachments({
         caught instanceof Error ? caught.message : "PDF dosyası kaydedilemedi."
       );
     } finally {
+      busyRef.current = false;
       setBusy(false);
       if (inputRef.current) inputRef.current.value = "";
     }
@@ -107,8 +111,14 @@ export default function PdfAttachments({
   }
 
   async function remove(attachment: PdfAttachment) {
-    await window.notebookAPI?.deleteAttachment(attachment.fileName);
-    onChange(attachments.filter((item) => item.id !== attachment.id));
+    try {
+      setError("");
+      await window.notebookAPI?.deleteAttachment(attachment.fileName);
+      onChange(attachments.filter((item) => item.id !== attachment.id));
+      if (readerId === attachment.id) setReaderId(null);
+    } catch {
+      setError("PDF silinemedi. Dosya kullanımda olabilir.");
+    }
   }
 
   return (
@@ -215,6 +225,7 @@ export default function PdfAttachments({
             }
           >
             <PdfReader
+              key={readerId}
               attachment={
                 attachments.find((attachment) => attachment.id === readerId)!
               }

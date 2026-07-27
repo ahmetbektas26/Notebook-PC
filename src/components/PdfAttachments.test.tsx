@@ -107,4 +107,32 @@ describe("PDF ekleri", () => {
     );
     expect(onChange).toHaveBeenCalledWith([]);
   });
+
+  it("diskten silinemeyen PDF'yi nottan kaldırıp kaybettirmez", async () => {
+    const attachment: PdfAttachment = {
+      id: "pdf-1",
+      fileName: "stored.pdf",
+      originalName: "makale.pdf",
+      size: 1024,
+      createdAt: "2026-07-27T10:00:00Z",
+      annotations: []
+    };
+    installApi({
+      deleteAttachment: vi.fn(async () => {
+        throw new Error("file in use");
+      })
+    });
+    const onChange = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <PdfAttachments attachments={[attachment]} onChange={onChange} />
+    );
+
+    await user.click(screen.getByRole("button", { name: "PDF'yi sil" }));
+
+    expect(
+      await screen.findByText("PDF silinemedi. Dosya kullanımda olabilir.")
+    ).toBeTruthy();
+    expect(onChange).not.toHaveBeenCalled();
+  });
 });

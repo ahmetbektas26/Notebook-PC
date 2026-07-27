@@ -61,11 +61,17 @@ export default function App() {
   useEffect(() => {
     if (!data) return;
     document.documentElement.dataset.theme = data.settings.theme;
-    const timer = window.setTimeout(() => {
-      void persistAppData(data).catch(() =>
-        setToast("Değişiklikler diske kaydedilemedi.")
-      );
-    }, 350);
+  }, [data?.settings.theme]);
+
+  useEffect(() => {
+    if (!data) return;
+    void persistAppData(data).catch(() =>
+      setToast("Değişiklikler diske kaydedilemedi.")
+    );
+  }, [data]);
+
+  useEffect(() => {
+    if (!data) return;
     const reminders = data.plannerItems
       .filter((item) => item.reminder && item.time && !item.completed)
       .flatMap((item) => {
@@ -80,10 +86,9 @@ export default function App() {
             completed: item.completed
           }
         ];
-      });
+    });
     void window.notebookAPI?.syncReminders(reminders).catch(() => undefined);
-    return () => window.clearTimeout(timer);
-  }, [data]);
+  }, [data?.plannerItems]);
 
   useEffect(() => {
     const unsubscribe = window.notebookAPI?.onReminderOpen((id) => {
@@ -197,7 +202,14 @@ export default function App() {
     return (
       <LockScreen
         onUnlock={(unlocked, status) => {
-          setData(migrateAppData(unlocked) ?? unlocked);
+          const normalized = migrateAppData(unlocked);
+          if (!normalized) {
+            setStartupError(
+              "Şifre çözüldü ancak yerel veri biçimi okunamadı. Yedeğini geri yüklemen gerekebilir."
+            );
+            return;
+          }
+          setData(normalized);
           setSecurityStatus(status);
         }}
       />

@@ -28,6 +28,28 @@ export const GRADE_RANGES: Array<{
   { letter: "F", min: 0, max: 39 }
 ];
 
+export function clampNumber(
+  value: number,
+  minimum: number,
+  maximum: number,
+  fallback = minimum
+) {
+  if (!Number.isFinite(value)) return fallback;
+  return Math.min(maximum, Math.max(minimum, value));
+}
+
+export function normalizeEcts(value: number) {
+  return clampNumber(value, 1, 30, 1);
+}
+
+export function normalizeCredits(value: number) {
+  return clampNumber(value, 0, 1000, 0);
+}
+
+export function normalizeGpa(value: number) {
+  return clampNumber(value, 0, 4, 0);
+}
+
 export function letterFromScore(score: number): GradeLetter {
   if (!Number.isFinite(score) || score < 0 || score > 100) return "F";
   return GRADE_RANGES.find(({ min }) => score >= min)?.letter ?? "F";
@@ -35,7 +57,11 @@ export function letterFromScore(score: number): GradeLetter {
 
 export function calculateTermGpa(entries: GradeEntry[]) {
   const valid = entries.filter(
-    (entry) => entry.ects > 0 && Number.isFinite(entry.ects)
+    (entry) =>
+      entry.ects > 0 &&
+      entry.ects <= 30 &&
+      Number.isFinite(entry.ects) &&
+      Object.hasOwn(GRADE_POINTS, entry.letter)
   );
   const totalEcts = valid.reduce((sum, entry) => sum + entry.ects, 0);
   const totalPoints = valid.reduce(
@@ -55,12 +81,41 @@ export function calculateProjectedGpa(
   entries: GradeEntry[]
 ) {
   const term = calculateTermGpa(entries);
-  const safeCredits =
-    Number.isFinite(currentCredits) && currentCredits > 0 ? currentCredits : 0;
-  const safeGpa = Number.isFinite(currentGpa)
-    ? Math.min(4, Math.max(0, currentGpa))
-    : 0;
+  const safeCredits = normalizeCredits(currentCredits);
+  const safeGpa = normalizeGpa(currentGpa);
   const totalCredits = safeCredits + term.totalEcts;
   if (!totalCredits) return 0;
   return (safeCredits * safeGpa + term.totalPoints) / totalCredits;
+}
+
+export function calculateRequiredGpa(
+  currentCredits: number,
+  currentGpa: number,
+  targetGpa: number,
+  graduationCredits: number
+) {
+  const safeCurrentCredits = normalizeCredits(currentCredits);
+  const safeCurrentGpa = normalizeGpa(currentGpa);
+  const safeTargetGpa = normalizeGpa(targetGpa);
+  const safeGraduationCredits = Math.max(
+    safeCurrentCredits,
+    normalizeCredits(graduationCredits)
+  );
+  const remainingCredits = safeGraduationCredits - safeCurrentCredits;
+
+  if (!remainingCredits) {
+    return {
+      remainingCredits: 0,
+      requiredGpa:
+        safeCurrentGpa >= safeTargetGpa ? 0 : Number.POSITIVE_INFINITY
+    };
+  }
+
+  return {
+    remainingCredits,
+    requiredGpa:
+      (safeTargetGpa * safeGraduationCredits -
+        safeCurrentGpa * safeCurrentCredits) /
+      remainingCredits
+  };
 }

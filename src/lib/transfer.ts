@@ -10,7 +10,7 @@ import type {
   PlannerItem,
   PlannerKind
 } from "../types";
-import { COURSE_COLORS, uid } from "./data";
+import { COURSE_COLORS, migrateAppData, uid } from "./data";
 
 function csvCell(value: unknown) {
   const text = String(value ?? "");
@@ -229,12 +229,15 @@ function parseCsv(text: string) {
       cell = "";
     } else cell += char;
   }
+  if (quoted) throw new Error("CSV dosyasında kapanmamış bir tırnak var.");
   if (cell || row.length) {
     row.push(cell.replace(/\r$/, ""));
     rows.push(row);
   }
   if (!rows.length) return [];
-  const headers = rows[0];
+  const headers = rows[0].map((header, index) =>
+    (index === 0 ? header.replace(/^\uFEFF/, "") : header).trim()
+  );
   return rows.slice(1).map((values) =>
     Object.fromEntries(headers.map((header, index) => [header, values[index] ?? ""]))
   );
@@ -242,6 +245,10 @@ function parseCsv(text: string) {
 
 export function mergeCsv(data: AppData, text: string): AppData {
   const rows = parseCsv(text);
+  const supportedTypes = new Set(["course", "note", "planner", "goal", "grade"]);
+  if (!rows.some((row) => supportedTypes.has(row.type))) {
+    throw new Error("CSV dosyasında desteklenen Notebook-PC kaydı bulunamadı.");
+  }
   const courses = [...data.courses];
   const courseMap = new Map<string, string>();
   rows
@@ -341,7 +348,7 @@ export function mergeCsv(data: AppData, text: string): AppData {
       });
     }
   });
-  return {
+  const merged = {
     ...data,
     courses,
     notes: [...notes, ...data.notes],
@@ -349,6 +356,7 @@ export function mergeCsv(data: AppData, text: string): AppData {
     goals: [...goals, ...data.goals],
     grades: [...data.grades, ...grades]
   };
+  return migrateAppData(merged) ?? data;
 }
 
 export function markdownFileToNote(name: string, content: string): Note {

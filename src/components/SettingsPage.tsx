@@ -40,13 +40,17 @@ export default function SettingsPage({
       onToast("Bu ayar masaüstü sürümünde kullanılabilir.");
       return;
     }
-    const enabled = await window.notebookAPI.setLaunchAtLogin(!launchAtLogin);
-    setLaunchAtLogin(enabled);
-    onToast(
-      enabled
-        ? "Windows başlangıcında açılacak."
-        : "Otomatik başlangıç kapatıldı."
-    );
+    try {
+      const enabled = await window.notebookAPI.setLaunchAtLogin(!launchAtLogin);
+      setLaunchAtLogin(enabled);
+      onToast(
+        enabled
+          ? "Windows başlangıcında açılacak."
+          : "Otomatik başlangıç kapatıldı."
+      );
+    } catch {
+      onToast("Windows başlangıç ayarı değiştirilemedi.");
+    }
   }
 
   return (

@@ -21,6 +21,7 @@ düzenlemek için hazırlanmış çevrimdışı bir masaüstü uygulamasıdır.
 - Mikrofonla sesli not kaydetme ve oynatma
 - Gün/saat seçilebilen tek seferlik, günlük veya haftalık masaüstü alarmları
 - Ders notları ve ortalama araçları için günlük hayattan ayrılmış **Okul** modülü
+- Ders silerken bağlı notları kaybetmeden kişisel deftere güvenli taşıma
 - Okul modülünde Doğuş Üniversitesi harf notu ve 4.00 katsayı tablosu
 - AKTS ağırlıklı dönem, tahmini genel ve hedef mezuniyet ortalaması
 - Alarmların kaçmaması için Windows ile arka planda otomatik başlatma
@@ -33,7 +34,7 @@ düzenlemek için hazırlanmış çevrimdışı bir masaüstü uygulamasıdır.
 
 GitHub'daki **Actions → Windows kurulum dosyası → Run workflow** yolunu izleyin.
 İşlem tamamlandığında çalışmanın altındaki `Notebook-PC-Windows` dosyasını
-indirin, ZIP'i açın ve `Notebook-PC-Setup-1.3.1.exe` dosyasını çalıştırın.
+indirin, ZIP'i açın ve `Notebook-PC-Setup-1.3.2.exe` dosyasını çalıştırın.
 
 Yerelde kurulum dosyası üretmek için:
 

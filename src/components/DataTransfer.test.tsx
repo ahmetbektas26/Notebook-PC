@@ -87,4 +87,32 @@ describe("içe ve dışa aktarma", () => {
     );
     expect(onDataChange).not.toHaveBeenCalled();
   });
+
+  it("dışa aktarma disk hatasını başarılı gibi göstermez", async () => {
+    const api = {
+      exportBackup: vi.fn(async () => {
+        throw new Error("disk full");
+      })
+    };
+    Object.defineProperty(window, "notebookAPI", {
+      configurable: true,
+      value: api
+    });
+    const onToast = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <DataTransfer
+        data={createInitialData()}
+        onDataChange={vi.fn()}
+        onToast={onToast}
+      />
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "JSON Tam yedek" })
+    );
+
+    expect(onToast).toHaveBeenCalledWith("JSON yedeği oluşturulamadı.");
+    expect(onToast).not.toHaveBeenCalledWith("JSON yedeği oluşturuldu.");
+  });
 });

@@ -25,4 +25,31 @@ describe("veri aktarımı", () => {
     expect(note.title).toBe("Deneme");
     expect(note.content).toContain("İçerik");
   });
+
+  it("CSV ile gelen uç değerleri güvenli veri sınırlarına çeker", () => {
+    const csv =
+      "\uFEFF\"type\",\"id\",\"title\",\"details\",\"date\",\"time\",\"status\",\"tags\",\"course\",\"ects\",\"grade\"\n" +
+      '"grade","1","Aşırı AKTS","","","","","","","500","Z"\n' +
+      '"goal","2","Hedef","","","","900","wrong","","",""';
+    const merged = mergeCsv(createInitialData(), csv);
+
+    expect(merged.grades[0]).toEqual(
+      expect.objectContaining({ ects: 30, letter: "F" })
+    );
+    expect(merged.goals[0]).toEqual(
+      expect.objectContaining({ progress: 100, category: "personal" })
+    );
+  });
+
+  it("Notebook-PC satırı olmayan veya bozuk CSV'yi sessizce başarılı saymaz", () => {
+    expect(() => mergeCsv(createInitialData(), '"ad","soyad"\n"A","B"')).toThrow(
+      /desteklenen/
+    );
+    expect(() =>
+      mergeCsv(
+        createInitialData(),
+        '"type","title"\n"note","kapanmamış'
+      )
+    ).toThrow(/kapanmamış/);
+  });
 });

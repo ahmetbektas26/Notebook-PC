@@ -19,6 +19,8 @@ export default function Recorder({ recordings, onChange }: RecorderProps) {
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState("");
   const [audioUrls, setAudioUrls] = useState<Record<string, string>>({});
+  const audioUrlsRef = useRef<Record<string, string>>({});
+  const recordingsRef = useRef(recordings);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
@@ -33,16 +35,24 @@ export default function Recorder({ recordings, onChange }: RecorderProps) {
     return () => window.clearInterval(timer);
   }, [recording]);
 
+  useEffect(() => {
+    audioUrlsRef.current = audioUrls;
+  }, [audioUrls]);
+
+  useEffect(() => {
+    recordingsRef.current = recordings;
+  }, [recordings]);
+
   useEffect(
     () => () => {
       streamRef.current?.getTracks().forEach((track) => track.stop());
       if (typeof URL.revokeObjectURL === "function") {
-        Object.values(audioUrls)
+        Object.values(audioUrlsRef.current)
           .filter((url) => url.startsWith("blob:"))
           .forEach((url) => URL.revokeObjectURL(url));
       }
     },
-    [audioUrls]
+    []
   );
 
   async function start() {
@@ -65,30 +75,37 @@ export default function Recorder({ recordings, onChange }: RecorderProps) {
         if (event.data.size) chunksRef.current.push(event.data);
       };
       recorder.onstop = async () => {
-        const duration = (Date.now() - startedAtRef.current) / 1000;
-        const blob = new Blob(chunksRef.current, {
-          type: recorder.mimeType || "audio/webm"
-        });
-        const bytes = await blob.arrayBuffer();
-        let fileName = `browser-${uid()}.webm`;
-        if (window.notebookAPI) {
-          fileName = await window.notebookAPI.saveAudio(bytes, blob.type);
-        } else {
-          setAudioUrls((current) => ({
-            ...current,
-            [fileName]: URL.createObjectURL(blob)
-          }));
-        }
-        onChange([
-          ...recordings,
-          {
-            id: uid(),
-            fileName,
-            duration,
-            createdAt: new Date().toISOString()
+        try {
+          const duration = (Date.now() - startedAtRef.current) / 1000;
+          const blob = new Blob(chunksRef.current, {
+            type: recorder.mimeType || "audio/webm"
+          });
+          const bytes = await blob.arrayBuffer();
+          let fileName = `browser-${uid()}.webm`;
+          if (window.notebookAPI) {
+            fileName = await window.notebookAPI.saveAudio(bytes, blob.type);
+          } else {
+            setAudioUrls((current) => ({
+              ...current,
+              [fileName]: URL.createObjectURL(blob)
+            }));
           }
-        ]);
-        stream.getTracks().forEach((track) => track.stop());
+          onChange([
+            ...recordingsRef.current,
+            {
+              id: uid(),
+              fileName,
+              duration,
+              createdAt: new Date().toISOString()
+            }
+          ]);
+        } catch {
+          setError("Ses kaydı kaydedilemedi. Lütfen yeniden dene.");
+        } finally {
+          stream.getTracks().forEach((track) => track.stop());
+          streamRef.current = null;
+          recorderRef.current = null;
+        }
       };
       recorder.start();
       setRecording(true);
@@ -114,8 +131,21 @@ export default function Recorder({ recordings, onChange }: RecorderProps) {
   }
 
   async function remove(audio: AudioNote) {
-    if (window.notebookAPI) await window.notebookAPI.deleteAudio(audio.fileName);
-    onChange(recordings.filter((item) => item.id !== audio.id));
+    try {
+      if (window.notebookAPI)
+        await window.notebookAPI.deleteAudio(audio.fileName);
+      const url = audioUrls[audio.fileName];
+      if (url?.startsWith("blob:") && typeof URL.revokeObjectURL === "function")
+        URL.revokeObjectURL(url);
+      setAudioUrls((current) => {
+        const next = { ...current };
+        delete next[audio.fileName];
+        return next;
+      });
+      onChange(recordings.filter((item) => item.id !== audio.id));
+    } catch {
+      setError("Ses kaydı silinemedi. Lütfen yeniden dene.");
+    }
   }
 
   return (

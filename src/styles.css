@@ -3053,16 +3053,59 @@ p {
   font-weight: 700;
 }
 
-.school-course-bar > button.active {
+.school-course-bar > button.active,
+.school-course-bar .course-pill.active {
   border-color: rgba(226, 170, 73, 0.55);
   color: var(--text);
   background: rgba(226, 170, 73, 0.08);
 }
 
-.school-course-bar > button span {
+.school-course-bar > button span,
+.school-course-bar .course-pill-select span {
   width: 7px;
   height: 7px;
   border-radius: 50%;
+}
+
+.school-course-bar .course-pill {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  height: 31px;
+  border: 1px solid var(--line-soft);
+  border-radius: 7px;
+  color: var(--muted);
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.school-course-bar .course-pill button {
+  height: 100%;
+  border: 0;
+  color: inherit;
+  background: transparent;
+}
+
+.school-course-bar .course-pill-select {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 7px 0 10px;
+  font-size: 8.5px;
+  font-weight: 700;
+}
+
+.school-course-bar .course-pill-delete {
+  display: grid;
+  width: 27px;
+  padding: 0;
+  place-items: center;
+  color: var(--muted-2);
+}
+
+.school-course-bar .course-pill-delete:hover {
+  color: var(--danger);
+  background: rgba(199, 91, 88, 0.1);
 }
 
 .school-course-bar .add-course-pill {

@@ -2,8 +2,12 @@ import { useMemo, useState } from "react";
 import type { AppData, GradeLetter } from "../types";
 import { uid } from "../lib/data";
 import {
+  calculateRequiredGpa,
   calculateProjectedGpa,
   calculateTermGpa,
+  normalizeCredits,
+  normalizeEcts,
+  normalizeGpa,
   GRADE_POINTS,
   GRADE_RANGES
 } from "../lib/grade";
@@ -27,15 +31,12 @@ export default function GradesPage({
     data.grades
   );
 
-  const remainingCredits = Math.max(
-    0,
-    graduationCredits - data.settings.currentCredits
+  const { remainingCredits, requiredGpa } = calculateRequiredGpa(
+    data.settings.currentCredits,
+    data.settings.currentGpa,
+    targetGpa,
+    graduationCredits
   );
-  const requiredGpa = remainingCredits
-    ? (targetGpa * graduationCredits -
-        data.settings.currentGpa * data.settings.currentCredits) /
-      remainingCredits
-    : 0;
 
   function addCourse() {
     onDataChange({
@@ -115,6 +116,12 @@ export default function GradesPage({
                 onChange={(event) =>
                   updateSettings("currentCredits", Number(event.target.value))
                 }
+                onBlur={(event) =>
+                  updateSettings(
+                    "currentCredits",
+                    normalizeCredits(Number(event.target.value))
+                  )
+                }
               />
             </label>
             <label>
@@ -127,6 +134,12 @@ export default function GradesPage({
                 value={data.settings.currentGpa}
                 onChange={(event) =>
                   updateSettings("currentGpa", Number(event.target.value))
+                }
+                onBlur={(event) =>
+                  updateSettings(
+                    "currentGpa",
+                    normalizeGpa(Number(event.target.value))
+                  )
                 }
               />
             </label>
@@ -177,6 +190,13 @@ export default function GradesPage({
                     value={entry.ects}
                     onChange={(event) =>
                       updateGrade(entry.id, "ects", Number(event.target.value))
+                    }
+                    onBlur={(event) =>
+                      updateGrade(
+                        entry.id,
+                        "ects",
+                        normalizeEcts(Number(event.target.value))
+                      )
                     }
                   />
                   <select
@@ -231,6 +251,9 @@ export default function GradesPage({
               step="0.01"
               value={targetGpa}
               onChange={(event) => setTargetGpa(Number(event.target.value))}
+              onBlur={(event) =>
+                setTargetGpa(normalizeGpa(Number(event.target.value)))
+              }
             />
           </label>
           <label>
@@ -242,6 +265,14 @@ export default function GradesPage({
               onChange={(event) =>
                 setGraduationCredits(Number(event.target.value))
               }
+              onBlur={(event) =>
+                setGraduationCredits(
+                  Math.max(
+                    normalizeCredits(Number(event.target.value)),
+                    normalizeCredits(data.settings.currentCredits)
+                  )
+                )
+              }
             />
           </label>
           <div
@@ -249,12 +280,12 @@ export default function GradesPage({
           >
             <span>Kalan {remainingCredits} AKTS'de gereken ortalama</span>
             <strong>
-              {requiredGpa > 4
+              {!Number.isFinite(requiredGpa) || requiredGpa > 4
                 ? "4.00 üstü"
                 : Math.max(0, requiredGpa).toFixed(2)}
             </strong>
             <small>
-              {requiredGpa > 4
+              {!Number.isFinite(requiredGpa) || requiredGpa > 4
                 ? "Bu hedef mevcut değerlerle matematiksel olarak mümkün değil."
                 : "Bu değeri veya üstünü yakalarsan hedefe ulaşırsın."}
             </small>

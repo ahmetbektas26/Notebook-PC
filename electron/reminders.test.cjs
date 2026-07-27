@@ -41,3 +41,30 @@ test("geçersiz tarih alarm kurmaz", () => {
     null
   );
 });
+
+test("tam o anda gelen alarmı kaçırmaz", () => {
+  const next = nextOccurrence(
+    { dueAt: "2026-07-27T10:00:00Z", repeat: "none" },
+    now
+  );
+  assert.equal(next.toISOString(), "2026-07-27T10:00:00.000Z");
+});
+
+test("tanımsız tekrar türünü alarm gibi yorumlamaz", () => {
+  assert.equal(
+    nextOccurrence(
+      { dueAt: "2026-07-27T09:00:00Z", repeat: "hourly" },
+      now
+    ),
+    null
+  );
+});
+
+test("çok eski tekrarlı alarmı doğrudan ilk gelecek tarihe taşır", () => {
+  const next = nextOccurrence(
+    { dueAt: "2000-01-01T09:00:00Z", repeat: "daily" },
+    now
+  );
+  assert.equal(next.getTime() > now, true);
+  assert.equal(next.getTime() - now <= 24 * 60 * 60 * 1000, true);
+});
